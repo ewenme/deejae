@@ -3,18 +3,21 @@ library(shiny)
 library(shinyalert)
 library(shinythemes)
 library(shinycssloaders)
+library(highcharter)
+library(dplyr)
 
 # get functions
 source("extract_funcs.R")
 
 # Define UI for application 
 ui <- navbarPage("deejae", theme = shinytheme("paper"),
+                 selected = "upload", collapsible = TRUE,
                  useShinyalert(),  # Set up shinyalert
                  
                  # page for uploading data -----------------
                  
                  # user entry section
-                 tabPanel("upload"),
+                 tabPanel("upload",
                  fluidRow(
                    column(3, wellPanel(
                      
@@ -45,9 +48,33 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                      tags$hr(),
                      
                      # collection table view
-                     DT::dataTableOutput(outputId = "collection_preview")
+                     withSpinner(DT::dataTableOutput(outputId = "collection_preview"), 
+                                 type = 8)
                      ))
                  )
+                 ),
+                 
+              # page for exploring collection -----------------
+              
+              tabPanel("explore",
+              fluidRow(
+                
+                # user selections
+                column(3, wellPanel(
+                  
+                  # x-var selection
+                  selectInput("xvar", "wot 2 look at?", 
+                              c("import date"="import_date", "bpm"="bpm", 
+                                "release year"="release_year"),
+                              selected = "import date")
+                )),
+                
+                # viz output
+                column(9, wellPanel(
+                  
+                  highchartOutput(outputId = "density_plot")
+                       ))
+              ))
 )
 
 
@@ -72,6 +99,10 @@ server <- function(input, output) {
       df <- read_traktor_collection(x = input$collection_upload$datapath)
       
     }
+    
+    # filter collection
+    df <- df %>%
+      filter(release_year <= year(Sys.Date()), bpm <= 300)
     
     return(df)
     
@@ -117,6 +148,29 @@ server <- function(input, output) {
     # Show a modal when the button is pressed
     shinyalert(title = "collection uploaded.", type = "success",
                closeOnClickOutside = TRUE)
+  })
+  
+  # page for exploring collection -----------------
+  
+  output$density_plot <- renderHighchart({
+    
+    collection_data() %>%
+      group_by(input$xvar) %>%
+      summarise(count = n()) %>%
+      hchart("spline") %>%
+      hc_xAxis() 
+    
+    test <- quo(xvar)
+    
+    my_summarise <- function(df, group_var) {
+      df %>%
+        group_by(!! group_var) %>%
+        summarise(count = n()) %>%
+        hchart("spline", hcaes(x = !! group_var)) 
+    }
+    
+    my_summarise(rekordbox_collection, xvar)
+    
   })
   
 }
