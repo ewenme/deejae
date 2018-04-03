@@ -3,7 +3,7 @@ library(shiny)
 library(shinyalert)
 library(shinythemes)
 library(shinycssloaders)
-library(highcharter)
+library(lubridate)
 library(dplyr)
 
 # get functions
@@ -54,9 +54,9 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                  )
                  ),
                  
-              # page for exploring collection -----------------
+              # page for exploring collection through import time -----------------
               
-              tabPanel("explore",
+              tabPanel("time machine",
               fluidRow(
                 
                 # user selections
@@ -64,22 +64,29 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                   
                   # x-var selection
                   selectInput("xvar", "wot 2 look at?", 
-                              c("import date"="import_date", "bpm"="bpm", 
+                              c("artists"="artist_name", "bpm"="bpm", 
                                 "release year"="release_year"),
-                              selected = "import date")
+                              selected = "import date"),
+                  
+                  # horizontal line
+                  tags$hr(),
+                  
+                  sliderInput(inputId = "import_date_slider", label = "import date range",
+                              min = 2000, max = year(Sys.Date()), 
+                              value = c(2000, year(Sys.Date())))
                 )),
                 
                 # viz output
                 column(9, wellPanel(
                   
-                  highchartOutput(outputId = "density_plot")
+                  plotOutput(outputId = "time_machine_plot")
                        ))
               ))
 )
 
 
 # Define server logic
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   # data objects ----------------------------
   
@@ -100,9 +107,24 @@ server <- function(input, output) {
       
     }
     
-    # filter collection
+    # filter collection for dodgy observations
     df <- df %>%
-      filter(release_year <= year(Sys.Date()), bpm <= 300)
+      filter(release_year <= year(Sys.Date()), release_year >= 1800,
+             bpm <= 300)
+      
+    return(df)
+    
+  })
+  
+  # collection filtered by user inputs
+  collection_data_filtered <- reactive({
+    
+    df <- collection_data()
+    
+    # respond to user inputs
+    df <- df %>%
+      filter(year(import_date) >= input$import_date_slider[1], 
+             year(import_date) <= input$import_date_slider[2])
     
     return(df)
     
@@ -152,24 +174,48 @@ server <- function(input, output) {
   
   # page for exploring collection -----------------
   
-  output$density_plot <- renderHighchart({
+  # update slider input based on user collection
+  observe({
     
-    collection_data() %>%
-      group_by(input$xvar) %>%
-      summarise(count = n()) %>%
-      hchart("spline") %>%
-      hc_xAxis() 
+    req(input$collection_upload)
     
-    test <- quo(xvar)
+    dataset <- collection_data()
+    min_import <- min(year(dataset$import_date))
+    max_import <- max(year(dataset$import_date))
     
-    my_summarise <- function(df, group_var) {
+    filtered_dataset <- collection_data_filtered()
+    min_slide <- min(year(filtered_dataset$import_date))
+    max_slide <- max(year(filtered_dataset$import_date))
+    
+    # Control the value, min, max, and step.
+    # Step size is 2 when input value is even; 1 when value is odd.
+    updateSliderInput(session, "import_date_slider", value = c(min_slide, max_slide),
+                      min = min_import, max = max_import, step = 1)
+  })
+  
+  output$time_machine_plot <- renderPlot({
+    
+    df <- collection_data_filtered()
+    
+    if (input$xvar %in% c("bpm", "release_year")) {
+    
+      ggplot(data = df, aes_string(x=input$xvar)) +
+        geom_density() +
+        theme_ipsum()
+      
+    } else if (input$xvar %in% c("artist_name")) {
+    
       df %>%
-        group_by(!! group_var) %>%
-        summarise(count = n()) %>%
-        hchart("spline", hcaes(x = !! group_var)) 
+        count(.dots=input$xvar) %>%
+        top_n(15, wt=n) %>%
+        arrange(n) %>%
+        mutate()
+        ggplot(aes_string(x=input$xvar)) +
+        geom_col(aes(y=n)) +
+        coord_flip() +
+        theme_ipsum()
+      
     }
-    
-    my_summarise(rekordbox_collection, xvar)
     
   })
   
