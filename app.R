@@ -208,9 +208,7 @@ server <- function(input, output, session) {
       df %>%
         count(.dots=input$xvar) %>%
         top_n(15, wt=n) %>%
-        arrange(n) %>%
-        mutate()
-        ggplot(aes_string(x=input$xvar)) +
+        ggplot(aes_string(x=paste0("reorder(", input$xvar, ", -n)"))) +
         geom_col(aes(y=n)) +
         coord_flip() +
         theme_ipsum()
