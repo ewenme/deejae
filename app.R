@@ -5,21 +5,32 @@ library(shinythemes)
 library(shinycssloaders)
 library(lubridate)
 library(dplyr)
+library(tidytext)
+library(wordcloud)
+library(stringr)
+library(ECharts2Shiny)
+library(ewen)
 
 # get functions
 source("extract_funcs.R")
 
-# Define UI for application 
+# Define UI for application ------------------------------------------------
+
 ui <- navbarPage("deejae", theme = shinytheme("paper"),
                  selected = "upload", collapsible = TRUE,
                  useShinyalert(),  # Set up shinyalert
+                 loadEChartsLibrary(), # set up ECharts
+                 tags$head(
+                   # Include custom CSS
+                   includeCSS("styles.css")
+                 ),
                  
-                 # page for uploading data -----------------
+                 # upload page -----------------
                  
                  # user entry section
                  tabPanel("upload",
                  fluidRow(
-                   column(3, wellPanel(
+                   column(4, wellPanel(
                      
                      # input: collection type
                      radioButtons(
@@ -35,11 +46,16 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                        inputId = "collection_upload", label = "collection upload",
                        accept = c(".nml", ".xml"), buttonLabel = "browse",
                        placeholder = "  no file selected", multiple = FALSE
+                     ),
+                     
+                     wellPanel(
+                       
+                       plotOutput(outputId = "track_cloud")
                      )
                    )),
                    
                    # collection preview
-                   column(9, wellPanel(
+                   column(8, wellPanel(
                      
                      # some summary text
                      h3(textOutput(outputId = "collection_summary")),
@@ -54,7 +70,7 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                  )
                  ),
                  
-              # page for exploring collection through import time -----------------
+              # time machine page -----------------
               
               tabPanel("time machine",
               fluidRow(
@@ -63,29 +79,30 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                 column(3, wellPanel(
                   
                   # x-var selection
-                  selectInput("xvar", "wot 2 look at?", 
-                              c("artists"="artist_name", "bpm"="bpm", 
-                                "release year"="release_year"),
-                              selected = "import date"),
+                  selectInput(inputId = "xvar", label = "wot 2 look at?", 
+                              c("artists"="artist_name", "BPM"="bpm", 
+                                "release years"="release_year"),
+                              selected = "artist tracks added"),
                   
                   # horizontal line
                   tags$hr(),
                   
                   sliderInput(inputId = "import_date_slider", label = "import date range",
-                              min = 2000, max = year(Sys.Date()), 
+                              min = 2000, max = year(Sys.Date()), step = 1, sep = "",
                               value = c(2000, year(Sys.Date())))
                 )),
                 
                 # viz output
                 column(9, wellPanel(
-                  
                   plotOutput(outputId = "time_machine_plot")
                        ))
               ))
+            
+           
 )
 
 
-# Define server logic
+# Define server logic ------------------------------------------------
 server <- function(input, output, session) {
   
   # data objects ----------------------------
@@ -130,8 +147,25 @@ server <- function(input, output, session) {
     
   })
   
+  # tidy text of track titles
+  tidy_trax <- reactive({
+    
+    df <- traktor_collection
+    
+    df$track_title <- trimws(gsub("\\w*[0-9]+\\w*\\s*", "", df$track_title))
+    
+    # unnest tokens
+    df %>%
+      unnest_tokens(output = word, input = track_title, token = "words") %>%
+      # remove stop words
+      anti_join(stop_words) %>%
+      # remove common track suffixes
+      filter(!str_detect(word, "mix|feat|original|remix|dub|extended|edit|original|vocal|production|instrumental|version|track|untitled|ft|rework|refix|dj|vip|rmx"))
+    
+    })
   
-  # page for uploading data -----------------
+  
+  # upload page -----------------
   
   # collection summary text
   output$collection_summary <- renderText({
@@ -139,6 +173,20 @@ server <- function(input, output, session) {
     req(input$collection_upload)
     
     paste("There are", nrow(collection_data()), "tracks in your", input$collection_type, "collection.")
+    
+  })
+  
+  # track title word cloud
+  output$track_cloud <- renderPlot({
+    
+    req(input$collection_upload)
+    
+    df <- tidy_trax()
+    
+    # plot
+    df %>%
+      count(word) %>%
+      with(wordcloud(word, n, max.words = 50))
     
   })
   
@@ -165,14 +213,14 @@ server <- function(input, output, session) {
     
   })
   
-  # collection upload pop-up 
+  # collection upload success pop-up 
   observeEvent(input$collection_upload, {
     # Show a modal when the button is pressed
     shinyalert(title = "collection uploaded.", type = "success",
                closeOnClickOutside = TRUE)
   })
   
-  # page for exploring collection -----------------
+  # time machine page -----------------
   
   # update slider input based on user collection
   observe({
@@ -190,10 +238,12 @@ server <- function(input, output, session) {
     # Control the value, min, max, and step.
     # Step size is 2 when input value is even; 1 when value is odd.
     updateSliderInput(session, "import_date_slider", value = c(min_slide, max_slide),
-                      min = min_import, max = max_import, step = 1)
+                      min = min_import, max = max_import)
   })
   
   output$time_machine_plot <- renderPlot({
+    
+    req(input$collection_upload)
     
     df <- collection_data_filtered()
     
@@ -201,7 +251,13 @@ server <- function(input, output, session) {
     
       ggplot(data = df, aes_string(x=input$xvar)) +
         geom_density() +
-        theme_ipsum()
+        labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
+                           "collection,", input$import_date_slider[1], "-", 
+                           input$import_date_slider[2]),
+             x=NULL, y="density") +
+        theme_work(base_size = 14) +
+        theme(axis.text.x = element_text(size=12),
+              plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"))
       
     } else if (input$xvar %in% c("artist_name")) {
     
@@ -210,8 +266,14 @@ server <- function(input, output, session) {
         top_n(15, wt=n) %>%
         ggplot(aes_string(x=paste0("reorder(", input$xvar, ", -n)"))) +
         geom_col(aes(y=n)) +
+        labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
+                           "collection,", input$import_date_slider[1], "-", 
+                           input$import_date_slider[2]),
+             x=NULL, y="# tracks") +
         coord_flip() +
-        theme_ipsum()
+        theme_work(base_size = 14) +
+        theme(axis.text.x = element_text(size=12),
+              plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"))
       
     }
     
