@@ -96,7 +96,15 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                 column(9, wellPanel(
                   plotOutput(outputId = "time_machine_plot")
                        ))
-              ))
+              )),
+              
+              tabPanel(title="about",
+                       fluidRow(
+                         column(6,
+                                includeMarkdown("about.Rmd")
+                         )
+                       )
+              )
             
            
 )

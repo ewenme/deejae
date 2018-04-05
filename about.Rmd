@@ -4,10 +4,9 @@ output: html_document
 
 **deejae** is an open-source tool for DJs to explore their digital collections.
 
-#### support
+##### support
 
 The following collection formats are supported:
 
 - Traktor (.nml)
 - Rekordbox (.xml)
-
