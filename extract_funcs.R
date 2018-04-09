@@ -79,8 +79,8 @@ read_traktor_history <- function(x) {
   # extract key attrs
   key_tree <- xml2::xml_find_first(playlist_entries, xpath = ".//PRIMARYKEY")
   key <- tibble::tibble(
-    key = xml2::xml_attr(key_tree, "KEY"),
-    type = xml2::xml_attr(key_tree, "TYPE")
+    id_key = xml2::xml_attr(key_tree, "KEY"),
+    record_type = xml2::xml_attr(key_tree, "TYPE")
   )
   
   # extract extended attrs
@@ -98,7 +98,7 @@ read_traktor_history <- function(x) {
   playlist_data <- dplyr::bind_cols(key, extended)
   
   # join track/playlist info
-  data <- inner_join(track_data, playlist_data, by=c("uid"="key"))
+  data <- inner_join(track_data, playlist_data, by=c("uid"="id_key"))
   
   # fix col classes
   data <- data %>%
@@ -111,7 +111,12 @@ read_traktor_history <- function(x) {
     group_by(start_date) %>%
     mutate(track_no = 1:n()) %>%
     mutate(set_time=round((start_time - first(start_time))/60, digits = 2),
-           duration=duration/60) %>% ungroup()
+           duration=duration/60) %>% ungroup() %>%
+    mutate(import_file = str_extract(x, "history.*"))
+  
+  # create formatted set date
+  data$set_date <- str_remove_all(str_extract(data$import_file, "_(.*?)_"), "_")
+  data$set_date <- ymd(data$set_date)
   
   return(data)
   
