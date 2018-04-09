@@ -102,9 +102,16 @@ read_traktor_history <- function(x) {
   
   # fix col classes
   data <- data %>%
-    mutate_at(c("duration", "deck"), as.numeric) %>%
+    mutate_at(c("duration", "deck", "public", "start_time", "start_date"), as.numeric) %>%
+    # remove non-public plays
+    filter(public == 1) %>%
     # arrange by start time
-    arrange(start_date, start_time)
+    arrange(start_date, start_time) %>%
+    # create set index
+    group_by(start_date) %>%
+    mutate(track_no = 1:n()) %>%
+    mutate(set_time=round((start_time - first(start_time))/60, digits = 2),
+           duration=duration/60) %>% ungroup()
   
   return(data)
   

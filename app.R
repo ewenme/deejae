@@ -8,8 +8,8 @@ library(dplyr)
 library(tidytext)
 library(wordcloud)
 library(stringr)
-library(ECharts2Shiny)
 library(ewen)
+library(purrr)
 
 # get functions
 source("extract_funcs.R")
@@ -70,9 +70,9 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                  )
                  ),
                  
-              # time machine page -----------------
+              # collection page -----------------
               
-              tabPanel("time machine",
+              tabPanel("collection",
               fluidRow(
                 
                 # user selections
@@ -94,9 +94,30 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                 
                 # viz output
                 column(9, wellPanel(
-                  plotOutput(outputId = "time_machine_plot")
+                  plotOutput(outputId = "collection_plot")
                        ))
               )),
+              
+              # sets page -----------------
+              
+              tabPanel(title="sets (traktor only)",
+                       fluidRow(
+                         column(3, wellPanel(
+                           # input: collection file upload
+                           fileInput(
+                             inputId = "history_upload", label = "history upload",
+                             accept = c(".nml"), buttonLabel = "browse",
+                             placeholder = "  no file selected", multiple = TRUE
+                           ),
+                           selectInput(inputId = "set_choice", label = "choose set",
+                                       choices = "")
+                         )),
+                         column(9, wellPanel(
+                           plotOutput(outputId = "sets_plot")
+                         ))
+              )),
+              
+              # about page -----------------
               
               tabPanel(title="about",
                        fluidRow(
@@ -115,6 +136,7 @@ server <- function(input, output, session) {
   
   # data objects ----------------------------
   
+  # uploaded user collection
   collection_data <- reactive({
     
     # check for collection upload
@@ -141,7 +163,7 @@ server <- function(input, output, session) {
     
   })
   
-  # collection filtered by user inputs
+  # collection filtered by app inputs
   collection_data_filtered <- reactive({
     
     df <- collection_data()
@@ -171,6 +193,25 @@ server <- function(input, output, session) {
       filter(!str_detect(word, "mix|feat|original|remix|dub|extended|edit|original|vocal|production|instrumental|version|track|untitled|ft|rework|refix|dj|vip|rmx"))
     
     })
+  
+  # uploaded traktory history data
+  history_data <- reactive({
+    
+    # check for history upload
+    upload <- input$history_upload
+    if (is.null(upload)) return(NULL)
+    
+    # read history data
+    df <- map_dfr(input$history_upload$datapath, read_traktor_history)
+    
+    # filter collection for dodgy observations
+    df <- df %>%
+      group_by(start_date) %>%
+      filter(n() >= 5) %>% ungroup()
+  
+    return(df)
+    
+  })
   
   
   # upload page -----------------
@@ -228,7 +269,7 @@ server <- function(input, output, session) {
                closeOnClickOutside = TRUE)
   })
   
-  # time machine page -----------------
+  # collection page -----------------
   
   # update slider input based on user collection
   observe({
@@ -249,7 +290,7 @@ server <- function(input, output, session) {
                       min = min_import, max = max_import)
   })
   
-  output$time_machine_plot <- renderPlot({
+  output$collection_plot <- renderPlot({
     
     req(input$collection_upload)
     
@@ -265,7 +306,9 @@ server <- function(input, output, session) {
              x=NULL, y="density") +
         theme_work(base_size = 14) +
         theme(axis.text.x = element_text(size=12),
-              plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"))
+              plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+              panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank())
       
     } else if (input$xvar %in% c("artist_name")) {
     
@@ -281,9 +324,52 @@ server <- function(input, output, session) {
         coord_flip() +
         theme_work(base_size = 14) +
         theme(axis.text.x = element_text(size=12),
-              plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"))
+              plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+              panel.grid.major = element_blank(),
+              panel.grid.minor = element_blank())
       
     }
+    
+  })
+  
+  # sets page ------------------------------------------------------
+  
+  # get unique set start times
+  sets_options <- reactive({
+    
+    df <- history_data()
+    unique(df$start_date)
+  })
+  
+  # update set select with reactive set times val
+  observe({
+    updateSelectInput(session, "set_choice",
+                      choices = sets_options()
+    )})
+  
+  # sets plot
+  output$sets_plot <- renderPlot({
+    
+    # get user inputs
+    req(input$history_upload)
+    
+    df <- history_data()
+    
+    set <- filter(df, start_date==input$set_choice)
+    
+    # plot set progress
+    ggplot(data = set, aes(y=track_no, x=set_time, xend=set_time+duration,
+                           label=paste(artist_name, "-", track_title))) +
+      geom_dumbbell(size=2, size_x = 2, size_xend = 2,
+                    color="#e3e2e1", colour_x = "#ED5B67", colour_xend = "#91C5CB") +
+      geom_text_repel(nudge_x = max(set$set_time), size=4, segment.size = 0) +
+      scale_y_continuous(trans = "reverse", breaks = unique(set$track_no)) +
+      labs(title=paste("my", input$set_choice, "set"), x="set time", y="track #") +
+      theme_work(base_size = 14) +
+      theme(axis.text.x = element_text(size=12),
+            plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank())
     
   })
   
