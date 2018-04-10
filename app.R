@@ -3,17 +3,19 @@ library(shiny)
 library(shinyalert)
 library(shinythemes)
 library(shinycssloaders)
+library(shinyjs)
 library(lubridate)
 library(dplyr)
 library(stringr)
 library(ewen)
 library(purrr)
 
-# get functions
+# get data extraction functions
 source("extract_funcs.R")
 
 # Define UI for application ------------------------------------------------
 
+# set overall layout/styles
 ui <- navbarPage("deejae", theme = shinytheme("paper"),
                  selected = "collection", collapsible = TRUE,
                  useShinyalert(),  # Set up shinyalert
@@ -23,63 +25,59 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                    includeCSS("styles.css")
                  ),
                  
-              # collection page -----------------
+              # collection page UI -----------------
               
-              tabPanel("collection",
-              fluidRow(
+              tabPanel("collection", fluidRow(
                 
                 # user selections
                 column(3, wellPanel(
                   
                   # input: collection type
+                  conditionalPanel(condition = "output.collection_cond == true",
                   radioButtons(
                     inputId = "collection_type", label = "collection select",
                     choices = c(rekordbox = "rekordbox", traktor = "traktor")
-                  ),
-                  
-                  # input: collection file upload
+                  )),
+                  # input: collection upload
+                  conditionalPanel(condition = "output.collection_cond == true",
                   fileInput(
                     inputId = "collection_upload", label = "collection upload",
                     accept = c(".nml", ".xml"), buttonLabel = "browse",
-                    placeholder = "  no file selected", multiple = FALSE
+                    placeholder = "  no file selected", multiple = FALSE)
                   ),
-                  
-                  # horizontal line
-                  tags$hr(),
-                  
-                  # x-var selection
-                  selectInput(inputId = "xvar", label = "wot 2 look at?", 
-                              c("artists"="artist_name", "BPM"="bpm", 
-                                "release years"="release_year"),
-                              selected = "artist tracks added"),
-                  
-                  # horizontal line
-                  tags$hr(),
-                  
-                  sliderInput(inputId = "import_date_slider", label = "import date range",
+                  # input: x-variable
+                  conditionalPanel(condition = "output.collection_cond == false",
+                  selectInput(inputId = "xvar", label = "wot 2 plot?", 
+                              c("artists"="artist_name", "albums"="album_title",
+                                "BPM"="bpm", "release years"="release_year"),
+                              selected = "artist tracks added")
+                  ),
+                  # input: import date
+                  conditionalPanel(condition = "output.collection_cond == false",
+                  sliderInput(inputId = "import_date_slider", label = "date added",
                               min = 2000, max = year(Sys.Date()), step = 1, sep = "",
                               value = c(2000, year(Sys.Date())))
-                )),
+                ))),
                 
                 # main panel
                 column(9, tabsetPanel(
-                  tabPanel("plot",
-                  # collection plot view
-                  withSpinner(plotOutput(outputId = "collection_plot"),
-                              type = 8)
-                  ),
                   
-                  tabPanel("table",
                   # collection table view
-                  withSpinner(DT::dataTableOutput(outputId = "collection_preview"), 
+                  tabPanel("table",
+                           withSpinner(DT::dataTableOutput(outputId = "collection_table"), 
+                                       type = 8)
+                  ),
+                  # collection plot view
+                  tabPanel("plot",
+                  withSpinner(plotOutput(outputId = "collection_plot"),
                               type = 8)
                        )))
               )),
               
-              # sets page -----------------
+              # sets page UI -----------------
               
-              tabPanel(title="sets (traktor only)",
-                       fluidRow(
+              tabPanel(title="sets (traktor only)", fluidRow(
+                
                          column(3, wellPanel(
                            # input: collection file upload
                            fileInput(
@@ -101,11 +99,9 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                        fluidRow(
                          column(6,
                                 includeMarkdown("about.Rmd")
-                         )
+                                )
                        )
               )
-            
-           
 )
 
 
@@ -174,40 +170,7 @@ server <- function(input, output, session) {
     
   })
   
-  
-  # upload page -----------------
-  
-  # collection summary text
-  output$collection_summary <- renderText({
-    
-    req(input$collection_upload)
-    
-    paste("There are", nrow(collection_data()), "tracks in your", input$collection_type, "collection.")
-    
-  })
-  
-  # collection table view
-  output$collection_preview <- DT::renderDataTable({
-    
-    # input$collection_upload will be NULL initially. After the user selects
-    # and uploads a file, head of that data file will be shown.
-    
-    req(input$collection_upload)
-    
-    # create datatable
-    data_preview <- collection_data()
-    data_preview <- subset(data_preview, select = c(track_title, artist_name,
-                                                    album_title, import_date))
-    
-    DT::datatable(data_preview, rownames = FALSE,
-                  colnames = c("track", "artist", "album", "date added"),
-                  options = list(
-                    order = list(list(1, 'asc')),
-                    dom = 'tp',
-                    pageLength = 10
-                  )) 
-    
-  })
+  # collection page SERVER -----------------
   
   # collection upload success pop-up 
   observeEvent(input$collection_upload, {
@@ -216,8 +179,6 @@ server <- function(input, output, session) {
                text = textOutput(outputId = "collection_summary"),
                closeOnClickOutside = TRUE)
   })
-  
-  # collection page -----------------
   
   # update slider input based on user collection
   observe({
@@ -237,6 +198,40 @@ server <- function(input, output, session) {
     updateSliderInput(session, "import_date_slider", value = c(min_slide, max_slide),
                       min = min_import, max = max_import)
   })
+  
+  # condition to use in the collection conditional UI
+  output$collection_cond <- reactive({
+    is.null(input$collection_upload)
+  })
+  outputOptions(output, "collection_cond", suspendWhenHidden = FALSE)
+  
+  # collection table view
+  output$collection_table <- DT::renderDataTable({
+    
+    # input$collection_upload will be NULL initially. After the user selects
+    # and uploads a file, head of that data file will be shown.
+    
+    req(input$collection_upload)
+    
+    # create datatable
+    df <- collection_data_filtered()
+    df <- subset(df, select = c(track_title, artist_name, album_title, 
+                                bpm, release_year, import_date, last_played,
+                                play_count, track_length_formatted))
+    
+    DT::datatable(df, rownames = FALSE,
+                  colnames = c("track", "artist", "album", "bpm", "release year",
+                               "date added", "last played", "play count", 
+                               "track length"),
+                  options = list(
+                    order = list(list(1, 'asc')),
+                    dom = 'tp',
+                    pageLength = 10
+                  )) 
+    
+  })
+  
+  
   
   output$collection_plot <- renderPlot({
     
@@ -258,7 +253,7 @@ server <- function(input, output, session) {
               panel.grid.major = element_blank(),
               panel.grid.minor = element_blank())
       
-    } else if (input$xvar %in% c("artist_name")) {
+    } else if (input$xvar %in% c("artist_name", "album_title")) {
     
       df %>%
         count(.dots=input$xvar) %>%

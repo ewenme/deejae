@@ -55,7 +55,8 @@ read_traktor_collection <- function(x) {
   data <- data %>%
     mutate_at(c("import_date", "last_played"), lubridate::ymd) %>%
     mutate_at(c("bpm", "track_length", "play_count"), as.numeric) %>%
-    mutate(release_year = lubridate::year(lubridate::ymd(release_year)))
+    mutate(release_year = lubridate::year(lubridate::ymd(release_year)),
+           track_length_formatted = secondsToString(track_length))
   
   return(data)
   
@@ -110,8 +111,8 @@ read_traktor_history <- function(x) {
     # create set index
     group_by(start_date) %>%
     mutate(track_no = 1:n()) %>%
-    mutate(set_time=round((start_time - first(start_time))/60, digits = 2),
-           duration=duration/60) %>% ungroup() %>%
+    mutate(set_time=(start_time - first(start_time)),
+           duration=duration) %>% ungroup() %>%
     mutate(import_file = str_extract(x, "history.*"))
   
   # create formatted set date
@@ -150,10 +151,34 @@ read_rekordbox_collection <- function(x) {
   # fix col classes
   data <- data %>%
     mutate_at(c("bpm", "track_length", "play_count", "release_year"), as.numeric) %>%
-    mutate(import_date = lubridate::ymd(import_date))
+    mutate(import_date = lubridate::ymd(import_date),
+           track_length_formatted = secondsToString(track_length))
   
   return(data)
   
 }
 
-
+# function to convert seconds values to string
+secondsToString <- function(x, digits=2){
+  unlist(
+    lapply(x,
+           function(i){
+             # fractional seconds
+             fs <- as.integer(round((i - round(i))*(10^digits)))
+             fmt <- ''
+             if (i >= 3600)
+               fmt <- '%H:%M:%S'
+             else if (i >= 60)
+               fmt <- '%M:%S'
+             else
+               fmt <- '%OS'
+             
+             i <- format(as.POSIXct(strptime("0:0:0","%H:%M:%S")) + i, format=fmt)
+             if (fs > 0)
+               sub('[0]+$','',paste(i,fs,sep='.'))
+             else
+               i
+           }
+    )
+  )
+}
