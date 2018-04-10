@@ -5,8 +5,6 @@ library(shinythemes)
 library(shinycssloaders)
 library(lubridate)
 library(dplyr)
-library(tidytext)
-library(wordcloud)
 library(stringr)
 library(ewen)
 library(purrr)
@@ -17,57 +15,12 @@ source("extract_funcs.R")
 # Define UI for application ------------------------------------------------
 
 ui <- navbarPage("deejae", theme = shinytheme("paper"),
-                 selected = "upload", collapsible = TRUE,
+                 selected = "collection", collapsible = TRUE,
                  useShinyalert(),  # Set up shinyalert
-                 loadEChartsLibrary(), # set up ECharts
+                 shinyjs::useShinyjs(), # set up shinyjs
                  tags$head(
                    # Include custom CSS
                    includeCSS("styles.css")
-                 ),
-                 
-                 # upload page -----------------
-                 
-                 # user entry section
-                 tabPanel("upload",
-                 fluidRow(
-                   column(4, wellPanel(
-                     
-                     # input: collection type
-                     radioButtons(
-                       inputId = "collection_type", label = "collection select",
-                       choices = c(rekordbox = "rekordbox", traktor = "traktor")
-                     ),
-                     
-                     # horizontal line
-                     tags$hr(),
-                     
-                     # input: collection file upload
-                     fileInput(
-                       inputId = "collection_upload", label = "collection upload",
-                       accept = c(".nml", ".xml"), buttonLabel = "browse",
-                       placeholder = "  no file selected", multiple = FALSE
-                     ),
-                     
-                     wellPanel(
-                       
-                       plotOutput(outputId = "track_cloud")
-                     )
-                   )),
-                   
-                   # collection preview
-                   column(8, wellPanel(
-                     
-                     # some summary text
-                     h3(textOutput(outputId = "collection_summary")),
-                     
-                     # horizontal line
-                     tags$hr(),
-                     
-                     # collection table view
-                     withSpinner(DT::dataTableOutput(outputId = "collection_preview"), 
-                                 type = 8)
-                     ))
-                 )
                  ),
                  
               # collection page -----------------
@@ -77,6 +30,22 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                 
                 # user selections
                 column(3, wellPanel(
+                  
+                  # input: collection type
+                  radioButtons(
+                    inputId = "collection_type", label = "collection select",
+                    choices = c(rekordbox = "rekordbox", traktor = "traktor")
+                  ),
+                  
+                  # input: collection file upload
+                  fileInput(
+                    inputId = "collection_upload", label = "collection upload",
+                    accept = c(".nml", ".xml"), buttonLabel = "browse",
+                    placeholder = "  no file selected", multiple = FALSE
+                  ),
+                  
+                  # horizontal line
+                  tags$hr(),
                   
                   # x-var selection
                   selectInput(inputId = "xvar", label = "wot 2 look at?", 
@@ -92,10 +61,19 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                               value = c(2000, year(Sys.Date())))
                 )),
                 
-                # viz output
-                column(9, wellPanel(
-                  plotOutput(outputId = "collection_plot")
-                       ))
+                # main panel
+                column(9, tabsetPanel(
+                  tabPanel("plot",
+                  # collection plot view
+                  withSpinner(plotOutput(outputId = "collection_plot"),
+                              type = 8)
+                  ),
+                  
+                  tabPanel("table",
+                  # collection table view
+                  withSpinner(DT::dataTableOutput(outputId = "collection_preview"), 
+                              type = 8)
+                       )))
               )),
               
               # sets page -----------------
@@ -177,23 +155,6 @@ server <- function(input, output, session) {
     
   })
   
-  # tidy text of track titles
-  tidy_trax <- reactive({
-    
-    df <- traktor_collection
-    
-    df$track_title <- trimws(gsub("\\w*[0-9]+\\w*\\s*", "", df$track_title))
-    
-    # unnest tokens
-    df %>%
-      unnest_tokens(output = word, input = track_title, token = "words") %>%
-      # remove stop words
-      anti_join(stop_words) %>%
-      # remove common track suffixes
-      filter(!str_detect(word, "mix|feat|original|remix|dub|extended|edit|original|vocal|production|instrumental|version|track|untitled|ft|rework|refix|dj|vip|rmx"))
-    
-    })
-  
   # uploaded traktory history data
   history_data <- reactive({
     
@@ -225,20 +186,6 @@ server <- function(input, output, session) {
     
   })
   
-  # track title word cloud
-  output$track_cloud <- renderPlot({
-    
-    req(input$collection_upload)
-    
-    df <- tidy_trax()
-    
-    # plot
-    df %>%
-      count(word) %>%
-      with(wordcloud(word, n, max.words = 50))
-    
-  })
-  
   # collection table view
   output$collection_preview <- DT::renderDataTable({
     
@@ -266,6 +213,7 @@ server <- function(input, output, session) {
   observeEvent(input$collection_upload, {
     # Show a modal when the button is pressed
     shinyalert(title = "collection uploaded.", type = "success",
+               text = textOutput(outputId = "collection_summary"),
                closeOnClickOutside = TRUE)
   })
   
