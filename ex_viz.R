@@ -44,5 +44,6 @@ ggplot(ex_set, aes(y=track_no, x=set_time, xend=set_time+duration,
                 color="#e3e2e1", colour_x = "#ED5B67", colour_xend = "#91C5CB") +
   geom_text_repel(nudge_x = max(ex_set$start_time), size=3, segment.size = 0) +
   scale_y_continuous(trans = "reverse", breaks = unique(ex_set$track_no)) +
+  scale_x_time() +
   theme_ipsum(grid = FALSE) 
   
