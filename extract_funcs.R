@@ -118,6 +118,7 @@ read_traktor_history <- function(x) {
   # create formatted set date
   data$set_date <- str_remove_all(str_extract(data$import_file, "_(.*?)_"), "_")
   data$set_date <- ymd(data$set_date)
+  data$set_date_formatted <- as.character(format(data$set_date, "%d %B, %Y"))
   
   return(data)
   
@@ -181,4 +182,15 @@ secondsToString <- function(x, digits=2){
            }
     )
   )
+}
+
+# function for pasting together strings and ignoring NAs
+paste3 <- function(...,sep=" - ") {
+  L <- list(...)
+  L <- lapply(L,function(x) {x[is.na(x)] <- ""; x})
+  ret <-gsub(paste0("(^",sep,"|",sep,"$)"),"",
+             gsub(paste0(sep,sep),sep,
+                  do.call(paste,c(L,list(sep=sep)))))
+  is.na(ret) <- ret==""
+  ret
 }

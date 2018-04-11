@@ -6,6 +6,7 @@ library(dplyr)
 library(xml2)
 library(lubridate)
 library(purrr)
+library(stringr)
 
 # set traktor folder
 traktor_dir <- "/Users/Ewen/Documents/Native Instruments/Traktor 2.11.0/"

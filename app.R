@@ -85,8 +85,7 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                              accept = c(".nml"), buttonLabel = "browse",
                              placeholder = "  no file selected", multiple = TRUE
                            ),
-                           selectInput(inputId = "set_choice", label = "choose set",
-                                       choices = "")
+                           uiOutput("set_selector")
                          )),
                          column(9, wellPanel(
                            plotOutput(outputId = "sets_plot")
@@ -232,7 +231,6 @@ server <- function(input, output, session) {
   })
   
   
-  
   output$collection_plot <- renderPlot({
     
     req(input$collection_upload)
@@ -282,32 +280,38 @@ server <- function(input, output, session) {
     
     df <- history_data()
     unique(df$start_date)
+    
   })
   
   # update set select with reactive set times val
-  observe({
-    updateSelectInput(session, "set_choice",
-                      choices = sets_options()
-    )})
+  output$set_selector <- renderUI({
+    
+    df <- sets_options()
+    selectInput("set_choice", "Choose Option:", as.list(df)) 
+  })
   
   # sets plot
   output$sets_plot <- renderPlot({
     
     # get user inputs
     req(input$history_upload)
+    req(input$set_choice)
     
     df <- history_data()
     
-    set <- filter(df, start_date==input$set_choice)
+    # filter for current set choice
+    set <- dplyr::filter(df, start_date==input$set_choice)
     
     # plot set progress
     ggplot(data = set, aes(y=track_no, x=set_time, xend=set_time+duration,
-                           label=paste(artist_name, "-", track_title))) +
+                           label=paste3(artist_name, track_title))) +
       geom_dumbbell(size=2, size_x = 2, size_xend = 2,
                     color="#e3e2e1", colour_x = "#ED5B67", colour_xend = "#91C5CB") +
-      geom_text_repel(nudge_x = max(set$set_time), size=4, segment.size = 0) +
-      scale_y_continuous(trans = "reverse", breaks = unique(set$track_no)) +
-      labs(title=paste("my", input$set_choice, "set"), x="set time", y="track #") +
+      geom_text_repel(nudge_x = max(set$set_time), size=4, segment.size = 0,
+                      direction = "x") +
+      scale_y_continuous(trans = "reverse") +
+      scale_x_time() +
+      labs(x="set time", y="track #") +
       theme_work(base_size = 14) +
       theme(axis.text.x = element_text(size=12),
             plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
