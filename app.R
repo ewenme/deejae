@@ -162,7 +162,7 @@ server <- function(input, output, session) {
     
     # filter collection for dodgy observations
     df <- df %>%
-      group_by(start_date) %>%
+      group_by(set_date_formatted) %>%
       filter(n() >= 5) %>% ungroup()
   
     return(df)
@@ -279,7 +279,9 @@ server <- function(input, output, session) {
   sets_options <- reactive({
     
     df <- history_data()
-    unique(df$start_date)
+    
+    choices <- as.character(unique(df$set_date))
+    return(choices)
     
   })
   
@@ -287,7 +289,7 @@ server <- function(input, output, session) {
   output$set_selector <- renderUI({
     
     df <- sets_options()
-    selectInput("set_choice", "Choose Option:", as.list(df)) 
+    selectInput("set_choice", "Choose Option:", df) 
   })
   
   # sets plot
@@ -300,7 +302,7 @@ server <- function(input, output, session) {
     df <- history_data()
     
     # filter for current set choice
-    set <- dplyr::filter(df, start_date==input$set_choice)
+    set <- dplyr::filter(df, as.character(set_date)==input$set_choice)
     
     # plot set progress
     ggplot(data = set, aes(y=track_no, x=set_time, xend=set_time+duration,
