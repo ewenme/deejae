@@ -105,23 +105,7 @@ read_traktor_history <- function(x) {
   data <- data %>%
     mutate_at(c("duration", "deck", "public", "start_time", "start_date"), as.numeric) %>%
     # remove non-public plays
-    filter(public == 1) %>%
-    # add import file name field
-    mutate(import_file = str_extract(x, "history.*"))
-  
-  # create formatted set date
-  data$set_date <- str_remove_all(str_extract(data$import_file, "_(.*?)_"), "_")
-  data$set_date <- ymd(data$set_date)
-  data$set_date_formatted <- as.character(format(data$set_date, "%d %B, %Y"))
-  
-  data <- data %>%
-    # arrange by start time
-    arrange(set_date, start_time) %>%
-    # create set index
-    group_by(set_date) %>%
-    mutate(track_no = 1:n()) %>%
-    mutate(set_time=(start_time - first(start_time)),
-           duration=duration) %>% ungroup() 
+    filter(public == 1)
   
   return(data)
   

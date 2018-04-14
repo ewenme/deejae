@@ -28,7 +28,4 @@ traktor_collection <- read_traktor_collection(x = "./example_data/traktor_collec
 rekordbox_collection <- read_rekordbox_collection(x = "./example_data/rekordbox_collection.xml")
 
 # load traktor history
-playlist_data <- map_dfr(traktor_history_files, read_traktor_history)
-
-
-
+playlist_data <- map(traktor_history_files, read_traktor_history)

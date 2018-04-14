@@ -9,6 +9,11 @@ library(dplyr)
 library(stringr)
 library(ewen)
 library(purrr)
+library(xml2)
+library(lubridate)
+library(ggplot2)
+library(ggalt)
+library(ggrepel)
 
 # get data extraction functions
 source("extract_funcs.R")
@@ -35,19 +40,19 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                   # input: collection type
                   conditionalPanel(condition = "output.collection_cond == true",
                   radioButtons(
-                    inputId = "collection_type", label = "collection select",
+                    inputId = "collection_type", label = "select collection",
                     choices = c(rekordbox = "rekordbox", traktor = "traktor")
                   )),
                   # input: collection upload
                   conditionalPanel(condition = "output.collection_cond == true",
                   fileInput(
-                    inputId = "collection_upload", label = "collection upload",
+                    inputId = "collection_upload", label = "upload collection",
                     accept = c(".nml", ".xml"), buttonLabel = "browse",
                     placeholder = "  no file selected", multiple = FALSE)
                   ),
                   # input: x-variable
                   conditionalPanel(condition = "output.collection_cond == false",
-                  selectInput(inputId = "xvar", label = "wot 2 plot?", 
+                  selectInput(inputId = "xvar", label = "wot 2 plot", 
                               c("artists"="artist_name", "albums"="album_title",
                                 "BPM"="bpm", "release years"="release_year"),
                               selected = "artist tracks added")
@@ -63,12 +68,12 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                 column(9, tabsetPanel(
                   
                   # collection table view
-                  tabPanel("table",
+                  tabPanel("table view",
                            withSpinner(DT::dataTableOutput(outputId = "collection_table"), 
                                        type = 8)
                   ),
                   # collection plot view
-                  tabPanel("plot",
+                  tabPanel("visualise",
                   withSpinner(plotOutput(outputId = "collection_plot"),
                               type = 8)
                        )))
@@ -79,18 +84,31 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
               tabPanel(title="sets (traktor only)", fluidRow(
                 
                          column(3, wellPanel(
-                           # input: collection file upload
-                           fileInput(
-                             inputId = "history_upload", label = "history upload",
-                             accept = c(".nml"), buttonLabel = "browse",
-                             placeholder = "  no file selected", multiple = TRUE
+                           # input: history file upload
+                           conditionalPanel(
+                             condition = "output.set_cond == true",
+                             fileInput(
+                               inputId = "history_upload", 
+                               label = "upload your traktor history",
+                               accept = c(".nml"), buttonLabel = "browse",
+                               placeholder = "  no file selected", multiple = TRUE
+                               )),
+                           # input: select set
+                           conditionalPanel(
+                             condition = "output.set_cond == false",
+                             selectInput(inputId = "set_select", label = "choose a set",
+                                         choices = "")
+                           ))),
+                         column(9, tabsetPanel(
+                           tabPanel("visualise",
+                                    withSpinner(plotOutput(outputId = "sets_plot"),
+                                                type = 8)
                            ),
-                           uiOutput("set_selector")
+                           tabPanel("table view",
+                                    withSpinner(DT::dataTableOutput(outputId = "sets_table"),
+                                                type = 8)
+                           )))
                          )),
-                         column(9, wellPanel(
-                           plotOutput(outputId = "sets_plot")
-                         ))
-              )),
               
               # about page -----------------
               
@@ -157,14 +175,57 @@ server <- function(input, output, session) {
     upload <- input$history_upload
     if (is.null(upload)) return(NULL)
     
-    # read history data
-    df <- map_dfr(input$history_upload$datapath, read_traktor_history)
+    # filenames object
+    filenames <- input$history_upload$name
     
-    # filter collection for dodgy observations
+    # read history data files
+    df <- map(input$history_upload$datapath, read_traktor_history)
+    
+    # set names of data files to filenames
+    names(df) <- filenames
+    
+    # bind rows of history data files, id col as filename
+    df <- bind_rows(df, .id="import_file")
+    
+    df <- df %>%
+      # reduce import file name field
+      mutate(import_file = str_extract(import_file, "history.*"))
+    
+    # create formatted set date
+    df$set_date <- str_remove_all(str_extract(df$import_file, "_(.*?)_"), "_")
+    df$set_date <- ymd(df$set_date)
+    df$set_date_formatted <- as.character(format(df$set_date, "%d %B, %Y"))
+
+    df <- df %>%
+      # arrange by start time
+      arrange(set_date, start_time) %>%
+      # create track_no of set field
+      group_by(set_date) %>%
+      mutate(track_no = 1:n()) %>%
+      # add set time field
+      mutate(set_time=(start_time - first(start_time))) %>% 
+      ungroup()
+    
+    # filter out dodgy sets
     df <- df %>%
       group_by(set_date_formatted) %>%
       filter(n() >= 5) %>% ungroup()
   
+    return(df)
+    
+  })
+  
+  # set data filtered by app inputs
+  set_data <- reactive({
+    
+    req(input$history_upload)
+    req(input$set_select)
+    
+    df <- history_data()
+    
+    # filter for current set choice
+    df <- dplyr::filter(df, set_date_formatted %in% input$set_select)
+    
     return(df)
     
   })
@@ -206,28 +267,28 @@ server <- function(input, output, session) {
   
   # collection table view
   output$collection_table <- DT::renderDataTable({
-    
+
     # input$collection_upload will be NULL initially. After the user selects
     # and uploads a file, head of that data file will be shown.
-    
+
     req(input$collection_upload)
-    
+
     # create datatable
     df <- collection_data_filtered()
-    df <- subset(df, select = c(track_title, artist_name, album_title, 
+    df <- subset(df, select = c(track_title, artist_name, album_title,
                                 bpm, release_year, import_date, last_played,
-                                play_count, track_length_formatted))
+                                play_count, track_length_formatted, duration
+    ))
     
     DT::datatable(df, rownames = FALSE,
                   colnames = c("track", "artist", "album", "bpm", "release year",
-                               "date added", "last played", "play count", 
+                               "date added", "last played", "play count",
                                "track length"),
                   options = list(
                     order = list(list(1, 'asc')),
                     dom = 'tp',
                     pageLength = 10
-                  )) 
-    
+                  ))
   })
   
   
@@ -273,23 +334,47 @@ server <- function(input, output, session) {
     
   })
   
-  # sets page ------------------------------------------------------
+  # sets page SERVER ------------------------------------------------------
   
-  # get unique set start times
-  sets_options <- reactive({
+  # update set select input based on user collection
+  observe({
     
-    df <- history_data()
-    
-    choices <- as.character(unique(df$set_date))
-    return(choices)
-    
+    req(input$history_upload)
+
+    updateSelectInput(session, "set_select", 
+                      choices = unique(history_data()$set_date_formatted)
+                      )
   })
   
-  # update set select with reactive set times val
-  output$set_selector <- renderUI({
+  # condition to use in the collection conditional UI
+  output$set_cond <- reactive({
+    is.null(input$history_upload)
+  })
+  outputOptions(output, "set_cond", suspendWhenHidden = FALSE)
+  
+  # sets table view
+  output$sets_table <- DT::renderDataTable({
     
-    df <- sets_options()
-    selectInput("set_choice", "Choose Option:", df) 
+    # input$collection_upload will be NULL initially. After the user selects
+    # and uploads a file, head of that data file will be shown.
+    
+    req(input$history_upload)
+    
+    # create datatable
+    df <- set_data()
+    df <- subset(df, select = c(track_no, set_time, track_title, artist_name, album_title,
+                                bpm, release_year, import_date, last_played,
+                                play_count, track_length_formatted))
+    
+    DT::datatable(df, rownames = FALSE,
+                  colnames = c("#", "set time", "track", "artist", "album", "bpm", 
+                               "release year","date added", "last played", "play count",
+                               "track length"),
+                  options = list(
+                    order = list(list(1, 'asc')),
+                    dom = 'tp',
+                    pageLength = 10
+                  ))
   })
   
   # sets plot
@@ -297,21 +382,17 @@ server <- function(input, output, session) {
     
     # get user inputs
     req(input$history_upload)
-    req(input$set_choice)
-    
-    df <- history_data()
-    
-    # filter for current set choice
-    set <- dplyr::filter(df, as.character(set_date)==input$set_choice)
+
+    df <- set_data()
     
     # plot set progress
-    ggplot(data = set, aes(y=track_no, x=set_time, xend=set_time+duration,
+    ggplot(data = df, aes(y=track_no, x=set_time, xend=set_time+duration,
                            label=paste3(artist_name, track_title))) +
       geom_dumbbell(size=2, size_x = 2, size_xend = 2,
                     color="#e3e2e1", colour_x = "#ED5B67", colour_xend = "#91C5CB") +
-      geom_text_repel(nudge_x = max(set$set_time), size=4, segment.size = 0,
+      geom_text_repel(nudge_x = max(df$set_time), size=4, segment.size = 0,
                       direction = "x") +
-      scale_y_continuous(trans = "reverse") +
+      scale_y_continuous(trans = "reverse", breaks = unique(df$track_no)) +
       scale_x_time() +
       labs(x="set time", y="track #") +
       theme_work(base_size = 14) +
