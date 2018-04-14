@@ -2,7 +2,7 @@
 output: html_document
 ---
 
-**deejae** is an open-source tool for DJs to explore their digital collections.
+**deejae** is an open-source project helping digital DJs explore their collections and selections.
 
 ##### support
 

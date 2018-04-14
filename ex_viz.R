@@ -30,7 +30,11 @@ ggplot(data = traktor_collection, aes(import_date, ..count..)) +
 traktor_collection %>%
   filter(bpm <= 300) %>%
   ggplot(aes(bpm, ..count..)) +
-  geom_density()
+  geom_density() +
+  theme_ipsum(base_family = "Work Sans Light", grid = "Y",
+              base_size = 16) +
+  theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+        axis.title.x = element_text(size = 20))
 
 
 # SET VIZ ------------------------------------------------------------------

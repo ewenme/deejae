@@ -7,7 +7,7 @@ library(shinyjs)
 library(lubridate)
 library(dplyr)
 library(stringr)
-library(ewen)
+library(hrbrthemes)
 library(purrr)
 library(xml2)
 library(lubridate)
@@ -27,7 +27,11 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
                  shinyjs::useShinyjs(), # set up shinyjs
                  tags$head(
                    # Include custom CSS
-                   includeCSS("styles.css")
+                   includeCSS("styles.css"),
+                   tags$style("#collection_table{height: calc(100vh - 200px) !important;}"),
+                   tags$style("#collection_plot{height: calc(100vh - 200px) !important;}"),
+                   tags$style("#sets_table{height: calc(100vh - 200px) !important;}"),
+                   tags$style("#sets_plot{height: calc(100vh - 200px) !important;}")
                  ),
                  
               # collection page UI -----------------
@@ -81,15 +85,14 @@ ui <- navbarPage("deejae", theme = shinytheme("paper"),
               
               # sets page UI -----------------
               
-              tabPanel(title="sets (traktor only)", fluidRow(
-                
+              tabPanel(title="selection", fluidRow(
                          column(3, wellPanel(
                            # input: history file upload
                            conditionalPanel(
                              condition = "output.set_cond == true",
                              fileInput(
                                inputId = "history_upload", 
-                               label = "upload your traktor history",
+                               label = "upload history (traktor only)",
                                accept = c(".nml"), buttonLabel = "browse",
                                placeholder = "  no file selected", multiple = TRUE
                                )),
@@ -206,10 +209,15 @@ server <- function(input, output, session) {
       mutate(set_time=(start_time - first(start_time))) %>% 
       ungroup()
     
-    # filter out dodgy sets
+    # filter out dodgy observations
     df <- df %>%
+      # remove sets of less than five tracks
       group_by(set_date_formatted) %>%
-      filter(n() >= 5) %>% ungroup()
+      filter(n() >= 5) %>% 
+      # set max duration of last two tracks to 15 mins
+      mutate(duration = if_else(track_no>=max(track_no)-1 & duration > 900,
+                                900, duration)) %>%
+      ungroup()
   
     return(df)
     
@@ -230,7 +238,7 @@ server <- function(input, output, session) {
     
   })
   
-  # collection page SERVER -----------------
+  # collection page -----------------
   
   # collection upload success pop-up 
   observeEvent(input$collection_upload, {
@@ -306,11 +314,11 @@ server <- function(input, output, session) {
                            "collection,", input$import_date_slider[1], "-", 
                            input$import_date_slider[2]),
              x=NULL, y="density") +
-        theme_work(base_size = 14) +
-        theme(axis.text.x = element_text(size=12),
-              plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-              panel.grid.major = element_blank(),
-              panel.grid.minor = element_blank())
+        theme_ipsum(base_family = "Work Sans Light", grid = "Y",
+                    base_size = 16) +
+        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+              axis.title.x = element_text(size = 16),
+              axis.title.y = element_text(size = 16))
       
     } else if (input$xvar %in% c("artist_name", "album_title")) {
     
@@ -324,17 +332,17 @@ server <- function(input, output, session) {
                            input$import_date_slider[2]),
              x=NULL, y="# tracks") +
         coord_flip() +
-        theme_work(base_size = 14) +
-        theme(axis.text.x = element_text(size=12),
-              plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-              panel.grid.major = element_blank(),
-              panel.grid.minor = element_blank())
+        theme_ipsum(base_family = "Work Sans Light", grid = "Y",
+                    base_size = 16) +
+        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+              axis.title.x = element_text(size = 16),
+              axis.title.y = element_text(size = 16))
       
     }
     
   })
   
-  # sets page SERVER ------------------------------------------------------
+  # sets page ------------------------------------------------------
   
   # update set select input based on user collection
   observe({
@@ -385,21 +393,32 @@ server <- function(input, output, session) {
 
     df <- set_data()
     
+    # text size
+    obj_size <- case_when(
+      nrow(df) <= 10 ~ 6,
+      nrow(df) <= 20 ~ 5,
+      nrow(df) <= 30 ~ 4,
+      nrow(df) <= 40 ~ 3,
+      nrow(df) <= 50 ~ 2,
+      nrow(df) > 50 ~ 1
+    )
+    
     # plot set progress
     ggplot(data = df, aes(y=track_no, x=set_time, xend=set_time+duration,
                            label=paste3(artist_name, track_title))) +
-      geom_dumbbell(size=2, size_x = 2, size_xend = 2,
-                    color="#e3e2e1", colour_x = "#ED5B67", colour_xend = "#91C5CB") +
-      geom_text_repel(nudge_x = max(df$set_time), size=4, segment.size = 0,
-                      direction = "x") +
+      geom_dumbbell(size=obj_size, size_x = obj_size, size_xend = obj_size,
+                    color="#e3e2e1", colour_x = "#7F00FF", colour_xend = "#E100FF",
+                    alpha=0.8, dot_guide=TRUE, dot_guide_size=0.25) +
+      geom_text_repel(nudge_x = max(df$set_time), size=obj_size, segment.size = 0,
+                      direction = "x", family = "Work Sans Light") +
       scale_y_continuous(trans = "reverse", breaks = unique(df$track_no)) +
       scale_x_time() +
       labs(x="set time", y="track #") +
-      theme_work(base_size = 14) +
-      theme(axis.text.x = element_text(size=12),
-            plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-            panel.grid.major = element_blank(),
-            panel.grid.minor = element_blank())
+      theme_ipsum(base_family = "Work Sans Light", grid = FALSE,
+                  base_size = 16) +
+      theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16))
     
   })
   

@@ -62,7 +62,6 @@ read_traktor_collection <- function(x) {
   
 }
 
-
 # function to read traktor history (.nml) file
 read_traktor_history <- function(x) {
   

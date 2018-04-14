@@ -29,3 +29,5 @@ rekordbox_collection <- read_rekordbox_collection(x = "./example_data/rekordbox_
 
 # load traktor history
 playlist_data <- map(traktor_history_files, read_traktor_history)
+
+foo <- bind_rows(playlist_data)
