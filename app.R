@@ -200,23 +200,49 @@ server <- function(input, output, session) {
     df$set_date_formatted <- as.character(format(df$set_date, "%d %B, %Y"))
 
     df <- df %>%
-      # arrange by start time
+      # arrange by set date / start time
       arrange(set_date, start_time) %>%
-      # create track_no of set field
       group_by(set_date) %>%
-      mutate(track_no = 1:n()) %>%
-      # add set time field
-      mutate(set_time=(start_time - first(start_time))) %>% 
-      ungroup()
-    
-    # filter out dodgy observations
-    df <- df %>%
-      # remove sets of less than five tracks
-      group_by(set_date_formatted) %>%
+      mutate(
+        # set track no. field
+        track_no = row_number(),
+        # add set time field
+        set_time = (start_time - first(start_time)),
+        # set max duration of last two tracks to 15 mins
+        duration = if_else(track_no >= max(track_no) - 1 & duration > 900,
+                           900, duration),
+        # add track end time field
+        end_time = set_time + duration,
+        # calc gap b/w start time & e/o prev. track
+        gap = abs(set_time - lag(end_time)),
+        gap = if_else(is.na(gap), 0, gap),
+        # define set 'break' as gap > 15 mins
+        set_break = if_else(gap > 900, 1, 0),
+        # rename set dates if new set
+        new_set = cumsum(set_break)) %>%
+        # remove sets smaller than five tracks
+      group_by(set_date, new_set) %>%
       filter(n() >= 5) %>% 
-      # set max duration of last two tracks to 15 mins
-      mutate(duration = if_else(track_no>=max(track_no)-1 & duration > 900,
-                                900, duration)) %>%
+      group_by(set_date) %>%
+      mutate(new_set = cumsum(set_break),
+             set_date_formatted = if_else(new_set == 0, paste(set_date_formatted),
+                                          paste0(set_date_formatted, " (", new_set, ")"))) %>% 
+      ungroup() %>%
+      # remove intermediary fields
+      select(-new_set, -set_break, -gap)
+    
+    df <- df %>%
+      # reset set time fields (now new sets defined)
+      group_by(set_date_formatted) %>%
+      mutate(
+        # set track no. field
+        track_no = row_number(),
+        # add set time field
+        set_time = (start_time - first(start_time)),
+        # add track end time field
+        end_time = set_time + duration
+        ) %>%
+      # separate sets if >= 5 mins silence
       ungroup()
   
     return(df)
@@ -295,7 +321,7 @@ server <- function(input, output, session) {
                   options = list(
                     order = list(list(1, 'asc')),
                     dom = 'tp',
-                    pageLength = 10
+                    pageLength = 5
                   ))
   })
   
@@ -381,7 +407,7 @@ server <- function(input, output, session) {
                   options = list(
                     order = list(list(1, 'asc')),
                     dom = 'tp',
-                    pageLength = 10
+                    pageLength = 5
                   ))
   })
   
@@ -404,7 +430,7 @@ server <- function(input, output, session) {
     )
     
     # plot set progress
-    ggplot(data = df, aes(y=track_no, x=set_time, xend=set_time+duration,
+    ggplot(data = df, aes(y=track_no, x=set_time, xend=end_time,
                            label=paste3(artist_name, track_title))) +
       geom_dumbbell(size=obj_size, size_x = obj_size, size_xend = obj_size,
                     color="#e3e2e1", colour_x = "#7F00FF", colour_xend = "#E100FF",
@@ -414,7 +440,7 @@ server <- function(input, output, session) {
       scale_y_continuous(trans = "reverse", breaks = unique(df$track_no)) +
       scale_x_time() +
       labs(x="set time", y="track #") +
-      theme_ipsum(base_family = "Work Sans Light", grid = FALSE,
+      theme_ipsum(base_family = "Work Sans Light", grid = "X",
                   base_size = 16) +
       theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
             axis.title.x = element_text(size = 16),

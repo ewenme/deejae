@@ -28,6 +28,29 @@ traktor_collection <- read_traktor_collection(x = "./example_data/traktor_collec
 rekordbox_collection <- read_rekordbox_collection(x = "./example_data/rekordbox_collection.xml")
 
 # load traktor history
-playlist_data <- map(traktor_history_files, read_traktor_history)
+playlist_data <- map(traktor_history_files, read_traktor_history) %>%
+  bind_rows()
 
-foo <- bind_rows(playlist_data)
+
+# CLEAN ----------------------------------------------------------------------
+
+playlist_data <- playlist_data %>%
+  # arrange by start time
+  arrange(start_date, start_time) %>%
+  # create track_no of set field
+  group_by(start_date) %>%
+  mutate(track_no = row_number()) %>%
+  # add set time field
+  mutate(set_time=(start_time - first(start_time)),
+         end_time=set_time+duration) %>% 
+  ungroup()
+
+# separate sets with silence
+foo <- playlist_data %>%
+  group_by(start_date) %>%
+  mutate(gap = abs(set_time - lag(end_time)),
+         gap = if_else(is.na(gap), 0, gap),
+         set_break = if_else(gap >= 360, 1, 0),
+         new_set = cumsum(set_break),
+         new_set_formatted = if_else(new_set == 0, paste(start_time),
+                                     paste0(start_time, " (", new_set, ")")))

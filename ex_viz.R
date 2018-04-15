@@ -13,13 +13,14 @@ library(ggrepel)
 # get functions/data
 source("ex_load.R")
 
+traktor_collection <- traktor_collection %>%
+  filter(release_year <= year(Sys.Date()),
+         bpm <= 300)
 
 # COLLECTION VIZ --------------------------------------------------------
 
 # release year density plot
-traktor_collection %>%
-  filter(release_year <= year(Sys.Date())) %>%
-  ggplot(aes(release_year, ..count..)) +
+ggplot(traktor_collection, aes(release_year, ..count..)) +
   geom_density()
 
 # import date density plot
@@ -27,14 +28,16 @@ ggplot(data = traktor_collection, aes(import_date, ..count..)) +
   geom_density()
 
 # bpm density plot
-traktor_collection %>%
-  filter(bpm <= 300) %>%
-  ggplot(aes(bpm, ..count..)) +
+ggplot(traktor_collection, aes(bpm, ..count..)) +
   geom_density() +
   theme_ipsum(base_family = "Work Sans Light", grid = "Y",
               base_size = 16) +
-  theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-        axis.title.x = element_text(size = 20))
+  theme(plot.margin=unit(c(1,1,1.5,1.2),"cm"),
+        axis.title.x = element_text(size = 20, vjust=-0.35)) +
+  coord_cartesian(xlim = c(min(traktor_collection$bpm),
+                           max(traktor_collection$bpm)+50)) +
+  scale_x_continuous(limits = c(min(traktor_collection$bpm),
+                                max(traktor_collection$bpm)))
 
 
 # SET VIZ ------------------------------------------------------------------
