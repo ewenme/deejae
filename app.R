@@ -20,109 +20,117 @@ source("extract_funcs.R")
 
 # Define UI for application ------------------------------------------------
 
-# set overall layout/styles
-ui <- navbarPage("deejae", theme = shinytheme("paper"),
-                 selected = "collection", collapsible = TRUE,
-                 useShinyalert(),  # Set up shinyalert
-                 shinyjs::useShinyjs(), # set up shinyjs
-                 tags$head(
-                   # Include custom CSS
-                   includeCSS("styles.css"),
-                   tags$style("#collection_table{height: calc(100vh - 200px) !important;}"),
-                   tags$style("#collection_plot{height: calc(100vh - 200px) !important;}"),
-                   tags$style("#sets_table{height: calc(100vh - 200px) !important;}"),
-                   tags$style("#sets_plot{height: calc(100vh - 200px) !important;}")
-                 ),
-                 
-              # collection page UI -----------------
-              
-              tabPanel("collection", fluidRow(
-                
-                # user selections
-                column(3, wellPanel(
-                  
-                  # input: collection type
-                  conditionalPanel(condition = "output.collection_cond == true",
-                  radioButtons(
-                    inputId = "collection_type", label = "select collection",
-                    choices = c(rekordbox = "rekordbox", traktor = "traktor")
-                  )),
-                  # input: collection upload
-                  conditionalPanel(condition = "output.collection_cond == true",
-                  fileInput(
-                    inputId = "collection_upload", label = "upload collection",
-                    accept = c(".nml", ".xml"), buttonLabel = "browse",
-                    placeholder = "  no file selected", multiple = FALSE)
-                  ),
-                  # input: x-variable
-                  conditionalPanel(condition = "output.collection_cond == false",
-                  selectInput(inputId = "xvar", label = "wot 2 plot", 
-                              c("artists"="artist_name", "albums"="album_title",
-                                "BPM"="bpm", "release years"="release_year"),
-                              selected = "artist tracks added")
-                  ),
-                  # input: import date
-                  conditionalPanel(condition = "output.collection_cond == false",
-                  sliderInput(inputId = "import_date_slider", label = "date added",
-                              min = 2000, max = year(Sys.Date()), step = 1, sep = "",
-                              value = c(2000, year(Sys.Date())))
-                ))),
-                
-                # main panel
-                column(9, tabsetPanel(
-                  
-                  # collection table view
-                  tabPanel("table view",
-                           withSpinner(DT::dataTableOutput(outputId = "collection_table"), 
+ui <- navbarPage(
+  
+  # overall layout/styles ---------------
+  "deejae", theme = shinytheme("paper"),
+  selected = "collection", collapsible = TRUE,
+  useShinyalert(),  # Set up shinyalert
+  shinyjs::useShinyjs(), # set up shinyjs
+  tags$head(
+    # Include custom CSS
+    includeCSS("styles.css"),
+    tags$style("#collection_plot{height: calc(100vh - 200px) !important;}"),
+    tags$style("#sets_plot{height: calc(100vh - 200px) !important;}")
+    ),
+  
+  # collection page UI -----------------
+  
+  tabPanel("collection", fluidRow(
+    
+    # user selections
+    
+    column(3, wellPanel(
+      # input: collection type
+      conditionalPanel(
+        condition = "output.collection_cond == true",
+        radioButtons(
+          inputId = "collection_type", label = "select collection",
+          choices = c(rekordbox = "rekordbox", traktor = "traktor")
+          )),
+      # input: collection upload
+      conditionalPanel(
+        condition = "output.collection_cond == true",
+        fileInput(
+          inputId = "collection_upload", label = "upload collection",
+          accept = c(".nml", ".xml"), buttonLabel = "browse",
+          placeholder = "  no file selected", multiple = FALSE)
+        ),
+      # input: x-variable
+      conditionalPanel(
+        condition = "output.collection_cond == false",
+        selectInput(inputId = "xvar", label = "wot 2 plot",
+                    c("artists"="artist_name", "albums"="album_title",
+                      "BPM"="bpm", "release years"="release_year"),
+                    selected = "artist tracks added")
+        ),
+      # input: import date
+      conditionalPanel(
+        condition = "output.collection_cond == false",
+        sliderInput(inputId = "import_date_slider", label = "date added",
+                    min = 2000, max = year(Sys.Date()), step = 1, sep = "",
+                    value = c(2000, year(Sys.Date())))
+        ))),
+    
+    # main panel
+    
+    column(9, tabsetPanel(
+      # collection table view
+      tabPanel("table view",
+               withSpinner(DT::dataTableOutput(outputId = "collection_table"), 
                                        type = 8)
-                  ),
-                  # collection plot view
-                  tabPanel("visualise",
-                  withSpinner(plotOutput(outputId = "collection_plot"),
-                              type = 8)
-                       )))
-              )),
-              
-              # sets page UI -----------------
-              
-              tabPanel(title="selection", fluidRow(
-                         column(3, wellPanel(
-                           # input: history file upload
-                           conditionalPanel(
-                             condition = "output.set_cond == true",
-                             fileInput(
-                               inputId = "history_upload", 
-                               label = "upload history (traktor only)",
-                               accept = c(".nml"), buttonLabel = "browse",
-                               placeholder = "  no file selected", multiple = TRUE
-                               )),
-                           # input: select set
-                           conditionalPanel(
-                             condition = "output.set_cond == false",
-                             selectInput(inputId = "set_select", label = "choose a set",
-                                         choices = "")
-                           ))),
-                         column(9, tabsetPanel(
-                           tabPanel("visualise",
-                                    withSpinner(plotOutput(outputId = "sets_plot"),
+               ),
+      # collection plot view
+      tabPanel("visualise",
+               withSpinner(plotOutput(outputId = "collection_plot"),
+                           type = 8)
+               )))
+    )),
+  
+  # sets page UI -----------------
+  
+  tabPanel(title="sets", fluidRow(column(3, wellPanel(
+    
+    # input: history file upload
+    conditionalPanel(
+      condition = "output.set_cond == true",
+      fileInput(
+        inputId = "history_upload", 
+        label = "upload history (traktor only)",
+        accept = c(".nml"), buttonLabel = "browse",
+        placeholder = "  no file selected", multiple = TRUE
+        )),
+    # input: select set
+    conditionalPanel(
+      condition = "output.set_cond == false",
+      selectInput(inputId = "set_select", label = "choose a set",
+                  choices = "")
+      ))),
+    
+    # main panel
+    
+    column(9, tabsetPanel(
+      
+      # set plot view
+      tabPanel("visualise",
+               withSpinner(plotOutput(outputId = "sets_plot"),
                                                 type = 8)
-                           ),
-                           tabPanel("table view",
-                                    withSpinner(DT::dataTableOutput(outputId = "sets_table"),
+               ),
+      # set table view
+      tabPanel("table view",
+               withSpinner(DT::dataTableOutput(outputId = "sets_table"),
                                                 type = 8)
-                           )))
-                         )),
-              
-              # about page -----------------
-              
-              tabPanel(title="about",
-                       fluidRow(
-                         column(6,
-                                includeMarkdown("about.Rmd")
-                                )
-                       )
-              )
-)
+               )))
+    )),
+  
+  # about page -----------------
+  
+  tabPanel(title="about", 
+           fluidRow(column(6, includeMarkdown("about.Rmd")
+                           )
+                    )
+           )
+  )
 
 
 # Define server logic ------------------------------------------------
