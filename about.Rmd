@@ -2,11 +2,21 @@
 output: html_document
 ---
 
-**deejae** is an open-source project helping digital DJs explore their collections and selections.
+**deejae** is an open-source project to help digital DJs explore their collections and selections.
 
-##### support
+**support**
 
-The following collection formats are supported:
+The following collection types are supported:
 
 - Traktor (.nml)
 - Rekordbox (.xml)
+
+**credits**
+
+The primary typeface in the app is [Work Sans Light](https://github.com/weiweihuanghuang/Work-Sans), developed by [wei](https://twitter.com/w__h_). Shiny extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) were a huge help in realising this work.
+
+**developers**
+
+deejae was developed using [Shiny](https://cran.r-project.org/web/packages/shiny/index.html), an open-source web development framework powered by [R](https://www.r-project.org/) (this project is **not** affiliated with [The Comprehensive R Archive Network](https://cran.r-project.org/) or [The R Foundation](https://www.r-project.org/)). 
+
+Source code is available [here](https://github.com/ewenme/deejae). 

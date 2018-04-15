@@ -247,6 +247,9 @@ server <- function(input, output, session) {
         track_no = row_number(),
         # add set time field
         set_time = (start_time - first(start_time)),
+        # set max duration of last two tracks to 15 mins
+        duration = if_else(track_no >= max(track_no) - 1 & duration > 900,
+                           900, duration),
         # add track end time field
         end_time = set_time + duration
         ) %>%
