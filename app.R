@@ -34,7 +34,7 @@ ui <- navbarPage(
     tags$style("#sets_plot{height: calc(100vh - 200px) !important;}")
     ),
   
-  # collection page UI -----------------
+  # collection UI -----------------
   
   tabPanel("collection", fluidRow(
     
@@ -87,9 +87,13 @@ ui <- navbarPage(
                )))
     )),
   
-  # sets page UI -----------------
+  # selection UI -----------------
   
-  tabPanel(title="sets", fluidRow(column(3, wellPanel(
+  navbarMenu("selection",
+    
+    # set history page
+    
+    tabPanel(title="set history", fluidRow(column(3, wellPanel(
     
     # input: history file upload
     conditionalPanel(
@@ -107,8 +111,6 @@ ui <- navbarPage(
                   choices = "")
       ))),
     
-    # main panel
-    
     column(9, tabsetPanel(
       
       # set plot view
@@ -122,6 +124,12 @@ ui <- navbarPage(
                                                 type = 8)
                )))
     )),
+    
+    # summary
+    
+    tabPanel(title = "summary")
+    
+    ),
   
   # about page -----------------
   
