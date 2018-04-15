@@ -6,10 +6,12 @@ output: html_document
 
 **support**
 
-The following collection types are supported:
+The following collection types are currently supported:
 
 - Traktor (.nml)
 - Rekordbox (.xml)
+
+For any feedback or enquiries, mail me [here](ewenhenderson@gmail.com).
 
 **credits**
 
@@ -17,6 +19,6 @@ The primary typeface in the app is [Work Sans Light](https://github.com/weiweihu
 
 **developers**
 
-deejae was developed using [Shiny](https://cran.r-project.org/web/packages/shiny/index.html), an open-source web development framework powered by [R](https://www.r-project.org/) (this project is **not** affiliated with [The Comprehensive R Archive Network](https://cran.r-project.org/) or [The R Foundation](https://www.r-project.org/)). 
+Source code is available [here](https://github.com/ewenme/deejae).
 
-Source code is available [here](https://github.com/ewenme/deejae). 
+deejae was developed using [Shiny](https://cran.r-project.org/web/packages/shiny/index.html), an open-source web development framework powered by [R](https://www.r-project.org/) (this project is **not** affiliated with [The Comprehensive R Archive Network](https://cran.r-project.org/) or [The R Foundation](https://www.r-project.org/)). 

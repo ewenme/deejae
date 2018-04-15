@@ -281,7 +281,6 @@ server <- function(input, output, session) {
   observeEvent(input$collection_upload, {
     # Show a modal when the button is pressed
     shinyalert(title = "collection uploaded.", type = "success",
-               text = textOutput(outputId = "collection_summary"),
                closeOnClickOutside = TRUE)
   })
   
@@ -380,6 +379,13 @@ server <- function(input, output, session) {
   })
   
   # sets page ------------------------------------------------------
+  
+  # sets upload success pop-up 
+  observeEvent(input$history_upload, {
+    # Show a modal when the button is pressed
+    shinyalert(title = "history files uploaded.", type = "success",
+               closeOnClickOutside = TRUE)
+  })
   
   # update set select input based on user collection
   observe({
