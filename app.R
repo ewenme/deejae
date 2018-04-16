@@ -137,7 +137,15 @@ ui <- navbarPage(
                   c("artists"="artist_name", "BPM"="bpm", 
                     "release years"="release_year"),
                   selected = "bpm")
-      )
+      ),
+    
+    # input: set quarter
+    conditionalPanel(
+      condition = "output.set_cond == false && input.set_view == 1",
+      sliderInput(inputId = "set_quarter", label = "set stage",
+                  min = 1, max = 4, value = c(1, 4), step = 1,
+                  pre = "Q")
+    )
     )),
     
     column(9, tabsetPanel(
@@ -290,6 +298,20 @@ server <- function(input, output, session) {
       # separate sets if >= 5 mins silence
       ungroup()
   
+    return(df)
+    
+  })
+  
+  # selection data filtered by app inputs
+  selection_data_filtered <- reactive({
+    
+    req(input$selection_upload)
+
+    df <- selection_data()
+    
+    # filter for current set choice
+    df <- dplyr::filter(df, set_quarter %in% input$set_quarter)
+    
     return(df)
     
   })
@@ -451,7 +473,7 @@ server <- function(input, output, session) {
     if (input$set_view == 1) {
       
       # get all selections data
-      df <- selection_data() 
+      df <- selection_data_filtered() 
       
       req(input$selection_xvar)
       
@@ -475,7 +497,6 @@ server <- function(input, output, session) {
           coord_flip() +
           theme_ipsum(base_family = "Work Sans Light", grid = "X",
                       base_size = 16)
-        
       }
       
       # set common plot elements
@@ -517,9 +538,7 @@ server <- function(input, output, session) {
       theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
             axis.title.x = element_text(size = 16),
             axis.title.y = element_text(size = 16))
-    
     }
-    
   })
   
   # sets table view
@@ -532,7 +551,7 @@ server <- function(input, output, session) {
     
     if (input$set_view == 1) {
       
-      df <- selection_data() }
+      df <- selection_data_filtered() }
     
     else if (input$set_view == 2) {
       
@@ -554,9 +573,7 @@ server <- function(input, output, session) {
                     dom = 'tp',
                     pageLength = 5
                   ))
-    
   })
-  
 }
 
 # Run the application 
