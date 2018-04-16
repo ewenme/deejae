@@ -4,6 +4,7 @@ library(shinyalert)
 library(shinythemes)
 library(shinycssloaders)
 library(shinyjs)
+library(shinyWidgets)
 library(lubridate)
 library(dplyr)
 library(stringr)
@@ -100,13 +101,43 @@ ui <- navbarPage(
         label = "upload history (traktor only)",
         accept = c(".nml"), buttonLabel = "browse",
         placeholder = "  no file selected", multiple = TRUE
-        )),
-    # input: select set
+        )
+      ),
+    
+    # input: set or summary switcher
     conditionalPanel(
       condition = "output.set_cond == false",
-      selectInput(inputId = "set_select", label = "choose a set",
-                  choices = "")
-      ))),
+      radioButtons(
+        inputId = "set_view", label = "selection type",
+        choices = list("all selections" = 1, "set selection" = 2),
+        selected = 1
+      )
+    ),
+    
+    tags$hr(),
+    
+    # set view
+    
+    # input: select set
+    conditionalPanel(
+      condition = "output.set_cond == false && input.set_view == 2",
+      selectInput(
+        inputId = "set_select", label = "choose a set",
+        choices = ""
+        )
+      ),
+    
+    # all selections view
+    
+    # input: x-variable
+    conditionalPanel(
+      condition = "output.set_cond == false && input.set_view == 1",
+      selectInput(inputId = "selection_xvar", label = "wot 2 plot",
+                  c("artists"="artist_name", "BPM"="bpm", 
+                    "release years"="release_year"),
+                  selected = "bpm")
+      )
+    )),
     
     column(9, tabsetPanel(
       
@@ -310,6 +341,50 @@ server <- function(input, output, session) {
   })
   outputOptions(output, "collection_cond", suspendWhenHidden = FALSE)
   
+  # collection plot view
+  output$collection_plot <- renderPlot({
+    
+    req(input$collection_upload)
+    
+    df <- collection_data_filtered()
+    
+    if (input$xvar %in% c("bpm", "release_year")) {
+      
+      ggplot(data = df, aes_string(x=input$xvar)) +
+        geom_density(colour="#E100FF") +
+        labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
+                           "collection,", input$import_date_slider[1], "-", 
+                           input$import_date_slider[2]),
+             x=NULL, y="density") +
+        theme_ipsum(base_family = "Work Sans Light", grid = "Y",
+                    base_size = 16) +
+        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+              axis.title.x = element_text(size = 16),
+              axis.title.y = element_text(size = 16))
+      
+    } else if (input$xvar %in% c("artist_name", "album_title")) {
+      
+      df %>%
+        count(.dots=input$xvar) %>%
+        top_n(10, wt=n) %>%
+        filter(!is.na(input$xvar) | input$xvar != "NA") %>%
+        ggplot(aes_string(x=paste0("reorder(", input$xvar, ", -n)"))) +
+        geom_col(aes(y=n), fill="#E100FF") +
+        labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
+                           "collection,", input$import_date_slider[1], "-", 
+                           input$import_date_slider[2]),
+             x=NULL, y="# tracks") +
+        coord_flip() +
+        theme_ipsum(base_family = "Work Sans Light", grid = "X",
+                    base_size = 16) +
+        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+              axis.title.x = element_text(size = 16),
+              axis.title.y = element_text(size = 16))
+      
+    }
+    
+  })
+  
   # collection table view
   output$collection_table <- DT::renderDataTable({
 
@@ -337,49 +412,6 @@ server <- function(input, output, session) {
   })
   
   
-  output$collection_plot <- renderPlot({
-    
-    req(input$collection_upload)
-    
-    df <- collection_data_filtered()
-    
-    if (input$xvar %in% c("bpm", "release_year")) {
-    
-      ggplot(data = df, aes_string(x=input$xvar)) +
-        geom_density(colour="#E100FF") +
-        labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
-                           "collection,", input$import_date_slider[1], "-", 
-                           input$import_date_slider[2]),
-             x=NULL, y="density") +
-        theme_ipsum(base_family = "Work Sans Light", grid = "Y",
-                    base_size = 16) +
-        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-              axis.title.x = element_text(size = 16),
-              axis.title.y = element_text(size = 16))
-      
-    } else if (input$xvar %in% c("artist_name", "album_title")) {
-    
-      df %>%
-        count(.dots=input$xvar) %>%
-        top_n(10, wt=n) %>%
-        filter(!is.na(input$xvar) | input$xvar != "NA") %>%
-        ggplot(aes_string(x=paste0("reorder(", input$xvar, ", -n)"))) +
-        geom_col(aes(y=n), fill="#E100FF") +
-        labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
-                           "collection,", input$import_date_slider[1], "-", 
-                           input$import_date_slider[2]),
-             x=NULL, y="# tracks") +
-        coord_flip() +
-        theme_ipsum(base_family = "Work Sans Light", grid = "X",
-                    base_size = 16) +
-        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-              axis.title.x = element_text(size = 16),
-              axis.title.y = element_text(size = 16))
-      
-    }
-    
-  })
-  
   # sets page ------------------------------------------------------
   
   # sets upload success pop-up 
@@ -405,6 +437,86 @@ server <- function(input, output, session) {
   })
   outputOptions(output, "set_cond", suspendWhenHidden = FALSE)
   
+  # sets plot
+  output$selection_plot <- renderPlot({
+    
+    # get user inputs
+    req(input$selection_upload)
+    
+    if (input$set_view == 1) {
+      
+      # get all selections data
+      df <- selection_data() 
+      
+      req(input$selection_xvar)
+      
+      if (input$selection_xvar %in% c("bpm", "release_year")) {
+        
+        ggplot(data = df, aes_string(x=input$selection_xvar)) +
+          geom_density(colour="#E100FF") +
+          labs(title = paste(input$selection_xvar, "popularity in your selections"), 
+               x=NULL, y="density") +
+          theme_ipsum(base_family = "Work Sans Light", grid = "Y",
+                      base_size = 16) +
+          theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+                axis.title.x = element_text(size = 16),
+                axis.title.y = element_text(size = 16))
+        
+      } else if (input$selection_xvar %in% c("artist_name")) {
+        
+        df %>%
+          count(.dots=input$selection_xvar) %>%
+          top_n(10, wt=n) %>%
+          filter(!is.na(input$selection_xvar) | input$selection_xvar != "NA") %>%
+          ggplot(aes_string(x=paste0("reorder(", input$selection_xvar, ", -n)"))) +
+          geom_col(aes(y=n), fill="#E100FF") +
+          labs(title = paste(input$selection_xvar, "popularity in your selections"),
+               x=NULL, y="# tracks") +
+          coord_flip() +
+          theme_ipsum(base_family = "Work Sans Light", grid = "X",
+                      base_size = 16) +
+          theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+                axis.title.x = element_text(size = 16),
+                axis.title.y = element_text(size = 16))
+        
+      }
+      
+    } else if (input$set_view == 2) {
+    
+      # get set data
+      df <- set_data()
+    
+      # text size
+      obj_size <- case_when(
+        nrow(df) <= 10 ~ 6,
+        nrow(df) <= 20 ~ 5,
+        nrow(df) <= 30 ~ 4,
+        nrow(df) <= 40 ~ 3,
+        nrow(df) <= 50 ~ 2,
+        nrow(df) > 50 ~ 1
+        )
+    
+      # plot set progress
+      ggplot(data = df, aes(y=track_no, x=set_time, xend=end_time,
+                          label=paste3(artist_name, track_title))) +
+      geom_dumbbell(size=obj_size, size_x = obj_size, size_xend = obj_size,
+                    color="#e3e2e1", colour_x = "#7F00FF", colour_xend = "#E100FF",
+                    alpha=0.8, dot_guide=TRUE, dot_guide_size=0.25) +
+      geom_text_repel(nudge_x = max(df$set_time), size=obj_size, segment.size = 0,
+                      direction = "x", family = "Work Sans Light") +
+      scale_y_continuous(trans = "reverse", breaks = unique(df$track_no)) +
+      scale_x_time() +
+      labs(x="set time", y="track #") +
+      theme_ipsum(base_family = "Work Sans Light", grid = "X",
+                  base_size = 16) +
+      theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16))
+    
+    }
+    
+  })
+  
   # sets table view
   output$selection_table <- DT::renderDataTable({
     
@@ -428,43 +540,6 @@ server <- function(input, output, session) {
                     dom = 'tp',
                     pageLength = 5
                   ))
-  })
-  
-  # sets plot
-  output$selection_plot <- renderPlot({
-    
-    # get user inputs
-    req(input$selection_upload)
-
-    df <- set_data()
-    
-    # text size
-    obj_size <- case_when(
-      nrow(df) <= 10 ~ 6,
-      nrow(df) <= 20 ~ 5,
-      nrow(df) <= 30 ~ 4,
-      nrow(df) <= 40 ~ 3,
-      nrow(df) <= 50 ~ 2,
-      nrow(df) > 50 ~ 1
-    )
-    
-    # plot set progress
-    ggplot(data = df, aes(y=track_no, x=set_time, xend=end_time,
-                           label=paste3(artist_name, track_title))) +
-      geom_dumbbell(size=obj_size, size_x = obj_size, size_xend = obj_size,
-                    color="#e3e2e1", colour_x = "#7F00FF", colour_xend = "#E100FF",
-                    alpha=0.8, dot_guide=TRUE, dot_guide_size=0.25) +
-      geom_text_repel(nudge_x = max(df$set_time), size=obj_size, segment.size = 0,
-                      direction = "x", family = "Work Sans Light") +
-      scale_y_continuous(trans = "reverse", breaks = unique(df$track_no)) +
-      scale_x_time() +
-      labs(x="set time", y="track #") +
-      theme_ipsum(base_family = "Work Sans Light", grid = "X",
-                  base_size = 16) +
-      theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-            axis.title.x = element_text(size = 16),
-            axis.title.y = element_text(size = 16))
-    
   })
   
 }
