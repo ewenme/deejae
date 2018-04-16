@@ -31,7 +31,7 @@ ui <- navbarPage(
     # Include custom CSS
     includeCSS("styles.css"),
     tags$style("#collection_plot{height: calc(100vh - 200px) !important;}"),
-    tags$style("#sets_plot{height: calc(100vh - 200px) !important;}")
+    tags$style("#selection_plot{height: calc(100vh - 200px) !important;}")
     ),
   
   # collection UI -----------------
@@ -62,7 +62,7 @@ ui <- navbarPage(
         selectInput(inputId = "xvar", label = "wot 2 plot",
                     c("artists"="artist_name", "albums"="album_title",
                       "BPM"="bpm", "release years"="release_year"),
-                    selected = "artist tracks added")
+                    selected = "bpm")
         ),
       # input: import date
       conditionalPanel(
@@ -75,31 +75,28 @@ ui <- navbarPage(
     # main panel
     
     column(9, tabsetPanel(
-      # collection table view
-      tabPanel("table view",
-               withSpinner(DT::dataTableOutput(outputId = "collection_table"), 
-                                       type = 8)
-               ),
       # collection plot view
       tabPanel("visualise",
                withSpinner(plotOutput(outputId = "collection_plot"),
                            type = 8)
-               )))
+               ),
+      # collection table view
+      tabPanel("table view",
+               withSpinner(DT::dataTableOutput(outputId = "collection_table"), 
+                           type = 8)
+      )))
     )),
   
   # selection UI -----------------
   
-  navbarMenu("selection",
-    
     # set history page
-    
-    tabPanel(title="set history", fluidRow(column(3, wellPanel(
+    tabPanel(title="selection", fluidRow(column(3, wellPanel(
     
     # input: history file upload
     conditionalPanel(
       condition = "output.set_cond == true",
       fileInput(
-        inputId = "history_upload", 
+        inputId = "selection_upload", 
         label = "upload history (traktor only)",
         accept = c(".nml"), buttonLabel = "browse",
         placeholder = "  no file selected", multiple = TRUE
@@ -115,22 +112,16 @@ ui <- navbarPage(
       
       # set plot view
       tabPanel("visualise",
-               withSpinner(plotOutput(outputId = "sets_plot"),
+               withSpinner(plotOutput(outputId = "selection_plot"),
                                                 type = 8)
                ),
       # set table view
       tabPanel("table view",
-               withSpinner(DT::dataTableOutput(outputId = "sets_table"),
+               withSpinner(DT::dataTableOutput(outputId = "selection_table"),
                                                 type = 8)
                )))
     )),
-    
-    # summary
-    
-    tabPanel(title = "summary")
-    
-    ),
-  
+     
   # about page -----------------
   
   tabPanel(title="about", 
@@ -188,17 +179,17 @@ server <- function(input, output, session) {
   })
   
   # uploaded traktory history data
-  history_data <- reactive({
+  selection_data <- reactive({
     
     # check for history upload
-    upload <- input$history_upload
+    upload <- input$selection_upload
     if (is.null(upload)) return(NULL)
     
     # filenames object
-    filenames <- input$history_upload$name
+    filenames <- input$selection_upload$name
     
     # read history data files
-    df <- map(input$history_upload$datapath, read_traktor_history)
+    df <- map(input$selection_upload$datapath, read_traktor_history)
     
     # set names of data files to filenames
     names(df) <- filenames
@@ -259,7 +250,9 @@ server <- function(input, output, session) {
         duration = if_else(track_no >= max(track_no) - 1 & duration > 900,
                            900, duration),
         # add track end time field
-        end_time = set_time + duration
+        end_time = set_time + duration,
+        # add 'set quarter' field
+        set_quarter = ntile(track_no, n=4)
         ) %>%
       # separate sets if >= 5 mins silence
       ungroup()
@@ -271,10 +264,10 @@ server <- function(input, output, session) {
   # set data filtered by app inputs
   set_data <- reactive({
     
-    req(input$history_upload)
+    req(input$selection_upload)
     req(input$set_select)
     
-    df <- history_data()
+    df <- selection_data()
     
     # filter for current set choice
     df <- dplyr::filter(df, set_date_formatted %in% input$set_select)
@@ -329,13 +322,13 @@ server <- function(input, output, session) {
     df <- collection_data_filtered()
     df <- subset(df, select = c(track_title, artist_name, album_title,
                                 bpm, release_year, import_date, last_played,
-                                play_count, track_length_formatted, duration
+                                play_count, track_length_formatted
     ))
     
     DT::datatable(df, rownames = FALSE,
                   colnames = c("track", "artist", "album", "bpm", "release year",
                                "date added", "last played", "play count",
-                               "track length"),
+                               "track time"),
                   options = list(
                     order = list(list(1, 'asc')),
                     dom = 'tp',
@@ -353,7 +346,7 @@ server <- function(input, output, session) {
     if (input$xvar %in% c("bpm", "release_year")) {
     
       ggplot(data = df, aes_string(x=input$xvar)) +
-        geom_density() +
+        geom_density(colour="#E100FF") +
         labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
                            "collection,", input$import_date_slider[1], "-", 
                            input$import_date_slider[2]),
@@ -368,15 +361,16 @@ server <- function(input, output, session) {
     
       df %>%
         count(.dots=input$xvar) %>%
-        top_n(15, wt=n) %>%
+        top_n(10, wt=n) %>%
+        filter(!is.na(input$xvar) | input$xvar != "NA") %>%
         ggplot(aes_string(x=paste0("reorder(", input$xvar, ", -n)"))) +
-        geom_col(aes(y=n)) +
+        geom_col(aes(y=n), fill="#E100FF") +
         labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
                            "collection,", input$import_date_slider[1], "-", 
                            input$import_date_slider[2]),
              x=NULL, y="# tracks") +
         coord_flip() +
-        theme_ipsum(base_family = "Work Sans Light", grid = "Y",
+        theme_ipsum(base_family = "Work Sans Light", grid = "X",
                     base_size = 16) +
         theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
               axis.title.x = element_text(size = 16),
@@ -389,35 +383,35 @@ server <- function(input, output, session) {
   # sets page ------------------------------------------------------
   
   # sets upload success pop-up 
-  observeEvent(input$history_upload, {
+  observeEvent(input$selection_upload, {
     # Show a modal when the button is pressed
-    shinyalert(title = "history files uploaded.", type = "success",
+    shinyalert(title = "history file(s) uploaded.", type = "success",
                closeOnClickOutside = TRUE)
   })
   
   # update set select input based on user collection
   observe({
     
-    req(input$history_upload)
+    req(input$selection_upload)
 
     updateSelectInput(session, "set_select", 
-                      choices = unique(history_data()$set_date_formatted)
+                      choices = unique(selection_data()$set_date_formatted)
                       )
   })
   
-  # condition to use in the collection conditional UI
+  # condition to use in the set selection conditional UI
   output$set_cond <- reactive({
-    is.null(input$history_upload)
+    is.null(input$selection_upload)
   })
   outputOptions(output, "set_cond", suspendWhenHidden = FALSE)
   
   # sets table view
-  output$sets_table <- DT::renderDataTable({
+  output$selection_table <- DT::renderDataTable({
     
     # input$collection_upload will be NULL initially. After the user selects
     # and uploads a file, head of that data file will be shown.
     
-    req(input$history_upload)
+    req(input$selection_upload)
     
     # create datatable
     df <- set_data()
@@ -437,10 +431,10 @@ server <- function(input, output, session) {
   })
   
   # sets plot
-  output$sets_plot <- renderPlot({
+  output$selection_plot <- renderPlot({
     
     # get user inputs
-    req(input$history_upload)
+    req(input$selection_upload)
 
     df <- set_data()
     
