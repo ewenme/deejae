@@ -78,6 +78,7 @@ ui <- navbarPage(
     column(9, tabsetPanel(
       # collection plot view
       tabPanel("visualise",
+               tags$br(),
                withSpinner(plotOutput(outputId = "collection_plot"),
                            type = 8)
                ),
@@ -143,6 +144,7 @@ ui <- navbarPage(
       
       # set plot view
       tabPanel("visualise",
+               tags$br(),
                withSpinner(plotOutput(outputId = "selection_plot"),
                                                 type = 8)
                ),
@@ -525,8 +527,17 @@ server <- function(input, output, session) {
     
     req(input$selection_upload)
     
+    if (input$set_view == 1) {
+      
+      df <- selection_data() }
+    
+    else if (input$set_view == 2) {
+      
+      df <- set_data()
+      
+    }
+    
     # create datatable
-    df <- set_data()
     df <- subset(df, select = c(track_no, set_time, track_title, artist_name, album_title,
                                 bpm, release_year, import_date, last_played,
                                 play_count, track_length_formatted))
@@ -540,6 +551,7 @@ server <- function(input, output, session) {
                     dom = 'tp',
                     pageLength = 5
                   ))
+    
   })
   
 }
