@@ -348,42 +348,45 @@ server <- function(input, output, session) {
     
     req(input$collection_upload)
     
+    # init data
     df <- collection_data_filtered()
     
+    # set plot dependent on x variable
     if (input$xvar %in% c("bpm", "release_year")) {
       
-      ggplot(data = df, aes_string(x=input$xvar)) +
+      # density plot
+      p <- ggplot(data = df, aes_string(x=input$xvar)) +
         geom_density(colour="#E100FF") +
-        labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
-                           "collection,", input$import_date_slider[1], "-", 
-                           input$import_date_slider[2]),
-             x=NULL, y="density") +
+        ylab("density") +
         theme_ipsum(base_family = "Work Sans Light", grid = "Y",
-                    base_size = 16) +
-        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-              axis.title.x = element_text(size = 16),
-              axis.title.y = element_text(size = 16))
+                    base_size = 16)
       
     } else if (input$xvar %in% c("artist_name", "album_title")) {
       
-      df %>%
+      # bar plot
+      p <- df %>%
         count(.dots=input$xvar) %>%
         top_n(10, wt=n) %>%
         filter(!is.na(input$xvar) | input$xvar != "NA") %>%
         ggplot(aes_string(x=paste0("reorder(", input$xvar, ", -n)"))) +
         geom_col(aes(y=n), fill="#E100FF") +
-        labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
-                           "collection,", input$import_date_slider[1], "-", 
-                           input$import_date_slider[2]),
-             x=NULL, y="# tracks") +
+        ylab("# tracks") +
         coord_flip() +
         theme_ipsum(base_family = "Work Sans Light", grid = "X",
-                    base_size = 16) +
-        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-              axis.title.x = element_text(size = 16),
-              axis.title.y = element_text(size = 16))
-      
+                    base_size = 16)
+        
     }
+    
+    # add common plot elements
+    p +
+      labs(title = paste(input$xvar, "popularity in your", input$collection_type, 
+                         "collection,", input$import_date_slider[1], "-", 
+                         input$import_date_slider[2]),
+           x=NULL) +
+      theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+            axis.title.x = element_text(size = 16),
+            axis.title.y = element_text(size = 16))
+      
     
   })
   
@@ -400,7 +403,7 @@ server <- function(input, output, session) {
     df <- subset(df, select = c(track_title, artist_name, album_title,
                                 bpm, release_year, import_date, last_played,
                                 play_count, track_length_formatted
-    ))
+                                ))
     
     DT::datatable(df, rownames = FALSE,
                   colnames = c("track", "artist", "album", "bpm", "release year",
@@ -454,35 +457,35 @@ server <- function(input, output, session) {
       
       if (input$selection_xvar %in% c("bpm", "release_year")) {
         
-        ggplot(data = df, aes_string(x=input$selection_xvar)) +
+        p <- ggplot(data = df, aes_string(x=input$selection_xvar)) +
           geom_density(colour="#E100FF") +
-          labs(title = paste(input$selection_xvar, "popularity in your selections"), 
-               x=NULL, y="density") +
+          ylab("density") +
           theme_ipsum(base_family = "Work Sans Light", grid = "Y",
-                      base_size = 16) +
-          theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-                axis.title.x = element_text(size = 16),
-                axis.title.y = element_text(size = 16))
+                      base_size = 16)
         
       } else if (input$selection_xvar %in% c("artist_name")) {
         
-        df %>%
+        p <- df %>%
           count(.dots=input$selection_xvar) %>%
           top_n(10, wt=n) %>%
           filter(!is.na(input$selection_xvar) | input$selection_xvar != "NA") %>%
           ggplot(aes_string(x=paste0("reorder(", input$selection_xvar, ", -n)"))) +
           geom_col(aes(y=n), fill="#E100FF") +
-          labs(title = paste(input$selection_xvar, "popularity in your selections"),
-               x=NULL, y="# tracks") +
+          ylab("# tracks") +
           coord_flip() +
           theme_ipsum(base_family = "Work Sans Light", grid = "X",
-                      base_size = 16) +
-          theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
-                axis.title.x = element_text(size = 16),
-                axis.title.y = element_text(size = 16))
+                      base_size = 16)
         
       }
       
+      # set common plot elements
+      p +
+        labs(title = paste(input$selection_xvar, "popularity in your selections"),
+             x=NULL) +
+        theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
+              axis.title.x = element_text(size = 16),
+              axis.title.y = element_text(size = 16))
+        
     } else if (input$set_view == 2) {
     
       # get set data
