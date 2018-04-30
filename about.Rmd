@@ -2,20 +2,11 @@
 output: html_document
 ---
 
-**deejae** is an open-source project to help digital DJs explore their collections and selections.
-
-**support**
-
-The following collection types are currently supported:
-
-- Traktor (.nml)
-- Rekordbox (.xml)
-
-For any feedback or enquiries, [e-mail me](ewenhenderson@gmail.com).
+**deejae** is an open-source project to help digital DJs explore their selections. Native support is currently provided for [Traktor](https://www.native-instruments.com/en/products/traktor/) only. For any feedback or enquiries, [e-mail me](ewenhenderson@gmail.com).
 
 **credits**
 
-The primary typeface family in the app is [Work Sans](https://github.com/weiweihuanghuang/Work-Sans), developed by [Wei Huang](https://twitter.com/w__h_). Shiny extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) were a huge help in realising this work.
+The primary typeface family in the app is [Work Sans](https://github.com/weiweihuanghuang/Work-Sans), developed by [Wei Huang](https://twitter.com/w__h_). The [Shiny](https://cran.r-project.org/web/packages/shiny/index.html) development framework and extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) helped to realise this work.
 
 **developers**
 
