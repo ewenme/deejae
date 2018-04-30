@@ -1,11 +1,11 @@
 @import url('https://fonts.googleapis.com/css?family=Work+Sans');
 
 @font-face {
-    font-family: Work Sans Light, sans-serif;
+    font-family: Work Sans Regular, sans-serif;
 }
 
 div {
-    font-family: Work Sans Light, sans-serif;
+    font-family: Work Sans Regular, sans-serif;
 }
 
 /* Customize fonts */

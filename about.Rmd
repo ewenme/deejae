@@ -11,14 +11,14 @@ The following collection types are currently supported:
 - Traktor (.nml)
 - Rekordbox (.xml)
 
-For any feedback or enquiries, mail me [here](ewenhenderson@gmail.com).
+For any feedback or enquiries, [e-mail me](ewenhenderson@gmail.com).
 
 **credits**
 
-The primary typeface in the app is [Work Sans Light](https://github.com/weiweihuanghuang/Work-Sans), developed by [wei](https://twitter.com/w__h_). Shiny extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) were a huge help in realising this work.
+The primary typeface family in the app is [Work Sans](https://github.com/weiweihuanghuang/Work-Sans), developed by [Wei Huang](https://twitter.com/w__h_). Shiny extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) were a huge help in realising this work.
 
 **developers**
 
-Source code is available [here](https://github.com/ewenme/deejae).
+Source code is available on [GitHub](https://github.com/ewenme/deejae).
 
 deejae was developed using [Shiny](https://cran.r-project.org/web/packages/shiny/index.html), an open-source web development framework powered by [R](https://www.r-project.org/) (this project is **not** affiliated with [The Comprehensive R Archive Network](https://cran.r-project.org/) or [The R Foundation](https://www.r-project.org/)). 

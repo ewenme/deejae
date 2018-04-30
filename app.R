@@ -380,7 +380,7 @@ server <- function(input, output, session) {
       p <- ggplot(data = df, aes_string(x=input$xvar)) +
         geom_density(colour="#E100FF") +
         ylab("density") +
-        theme_ipsum(base_family = "Work Sans Light", grid = "Y",
+        theme_ipsum(base_family = "Work Sans Regular", grid = "Y",
                     base_size = 16)
       
     } else if (input$xvar %in% c("artist_name", "album_title")) {
@@ -394,7 +394,7 @@ server <- function(input, output, session) {
         geom_col(aes(y=n), fill="#E100FF") +
         ylab("# tracks") +
         coord_flip() +
-        theme_ipsum(base_family = "Work Sans Light", grid = "X",
+        theme_ipsum(base_family = "Work Sans Regular", grid = "X",
                     base_size = 16)
         
     }
@@ -482,7 +482,7 @@ server <- function(input, output, session) {
         p <- ggplot(data = df, aes_string(x=input$selection_xvar)) +
           geom_density(colour="#E100FF") +
           ylab("density") +
-          theme_ipsum(base_family = "Work Sans Light", grid = "Y",
+          theme_ipsum(base_family = "Work Sans Regular", grid = "Y",
                       base_size = 16)
         
       } else if (input$selection_xvar %in% c("artist_name")) {
@@ -495,7 +495,7 @@ server <- function(input, output, session) {
           geom_col(aes(y=n), fill="#E100FF") +
           ylab("# tracks") +
           coord_flip() +
-          theme_ipsum(base_family = "Work Sans Light", grid = "X",
+          theme_ipsum(base_family = "Work Sans Regular", grid = "X",
                       base_size = 16)
       }
       
@@ -529,11 +529,11 @@ server <- function(input, output, session) {
                     color="#e3e2e1", colour_x = "#7F00FF", colour_xend = "#E100FF",
                     alpha=0.8, dot_guide=TRUE, dot_guide_size=0.25) +
       geom_text_repel(nudge_x = max(df$set_time), size=obj_size, segment.size = 0,
-                      direction = "x", family = "Work Sans Light") +
+                      direction = "x", family = "Work Sans Regular") +
       scale_y_continuous(trans = "reverse", breaks = unique(df$track_no)) +
       scale_x_time() +
       labs(x="set time", y="track #") +
-      theme_ipsum(base_family = "Work Sans Light", grid = "X",
+      theme_ipsum(base_family = "Work Sans Regular", grid = "X",
                   base_size = 16) +
       theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
             axis.title.x = element_text(size = 16),
