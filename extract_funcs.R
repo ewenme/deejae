@@ -111,40 +111,6 @@ read_traktor_history <- function(x) {
 }
 
 
-# function to read rekordbox (.xml) collection
-read_rekordbox_collection <- function(x) {
-  
-  # read collection file
-  collection <- xml2::read_xml(x = x)
-  
-  # extract collection entries
-  collection_entries <- xml2::xml_child(collection, search = 2) %>%
-    xml2::xml_find_all(xpath = ".//TRACK")
-  
-  # extract attrs
-  data <- tibble::tibble(
-    track_title = xml2::xml_attr(collection_entries, "Name"),
-    artist_name = xml2::xml_attr(collection_entries, "Artist"),
-    album_title = xml2::xml_attr(collection_entries, "Album"),
-    bpm = xml2::xml_attr(collection_entries, "AverageBpm"),
-    genre = xml2::xml_attr(collection_entries, "Genre"),
-    release_year = xml2::xml_attr(collection_entries, "Year"),
-    track_length = xml2::xml_attr(collection_entries, "TotalTime"),
-    play_count = xml2::xml_attr(collection_entries, "PlayCount"),
-    import_date = xml2::xml_attr(collection_entries, "DateAdded"),
-    key = xml2::xml_attr(collection_entries, "Tonality")
-  )
-  
-  # fix col classes
-  data <- data %>%
-    mutate_at(c("bpm", "track_length", "play_count", "release_year"), as.numeric) %>%
-    mutate(import_date = lubridate::ymd(import_date),
-           track_length_formatted = secondsToString(track_length))
-  
-  return(data)
-  
-}
-
 # function to convert seconds values to string
 secondsToString <- function(x, digits=2){
   unlist(

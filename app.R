@@ -37,14 +37,14 @@ ui <- navbarPage(
   # selection UI -----------------
   
     # set history page
-    tabPanel(title="selection", fluidRow(column(3, wellPanel(
+    tabPanel(title="app", fluidRow(column(3, wellPanel(
     
     # input: history file upload
     conditionalPanel(
       condition = "output.set_cond == true",
       fileInput(
         inputId = "selection_upload", 
-        label = "upload history (traktor only)",
+        label = "upload history",
         accept = c(".nml"), buttonLabel = "browse",
         placeholder = "  no file selected", multiple = TRUE
         )
@@ -56,7 +56,7 @@ ui <- navbarPage(
       radioButtons(
         inputId = "set_view", label = "selection type",
         choices = list("all selections" = 1, "set selection" = 2),
-        selected = 1
+        selected = 2
       )
     ),
     
@@ -176,9 +176,13 @@ server <- function(input, output, session) {
       group_by(set_date, new_set) %>%
       filter(n() >= 5) %>% 
       group_by(set_date) %>%
-      mutate(new_set = cumsum(set_break),
-             set_date_formatted = if_else(new_set == 0, paste(set_date_formatted),
-                                          paste0(set_date_formatted, " (", new_set, ")"))) %>% 
+      mutate(
+        new_set = cumsum(set_break),
+        set_date_formatted = if_else(
+          new_set == 0, paste(set_date_formatted),
+          paste0(set_date_formatted, " (", new_set, ")")
+          )
+        ) %>% 
       ungroup() %>%
       # remove intermediary fields
       select(-new_set, -set_break, -gap)
@@ -192,12 +196,14 @@ server <- function(input, output, session) {
         # add set time field
         set_time = (start_time - first(start_time)),
         # set max duration of last two tracks to 15 mins
-        duration = if_else(track_no >= max(track_no) - 1 & duration > 900,
-                           900, duration),
+        duration = if_else(
+          track_no >= max(track_no) - 1 & duration > 900,
+          900, duration
+          ),
         # add track end time field
         end_time = set_time + duration,
         # add 'set quarter' field
-        set_quarter = ntile(track_no, n=4)
+        set_quarter = ntile(set_time, n=4)
         ) %>%
       # separate sets if >= 5 mins silence
       ungroup()
@@ -277,7 +283,8 @@ server <- function(input, output, session) {
         
         p <- ggplot(data = df, aes_string(x=input$selection_xvar)) +
           geom_density(colour="#E100FF") +
-          ylab("density") +
+          ylab("% of selections") +
+          scale_y_percent() +
           theme_ipsum(base_family = "Work Sans", grid = "Y",
                       base_size = 16)
         
@@ -286,10 +293,10 @@ server <- function(input, output, session) {
         p <- df %>%
           count(.dots=input$selection_xvar) %>%
           top_n(10, wt=n) %>%
-          filter(!is.na(input$selection_xvar) | input$selection_xvar != "NA") %>%
-          ggplot(aes_string(x=paste0("reorder(", input$selection_xvar, ", -n)"))) +
+          na.omit() %>%
+          ggplot(aes_string(x=paste0("reorder(", input$selection_xvar, ", n)"))) +
           geom_col(aes(y=n), fill="#E100FF") +
-          ylab("# tracks") +
+          ylab("# of selections") +
           coord_flip() +
           theme_ipsum(base_family = "Work Sans", grid = "X",
                       base_size = 16)
@@ -297,7 +304,10 @@ server <- function(input, output, session) {
       
       # set common plot elements
       p +
-        labs(title = paste(input$selection_xvar, "popularity in your selections"),
+        labs(title = paste0(str_replace_all(input$selection_xvar, "_", " "), ", ",
+                            as.character(format(min(df$set_date), "%B %Y")),
+                            " - ", as.character(format(max(df$set_date), "%B %Y")),
+                            " selections"),
              x=NULL) +
         theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
               axis.title.x = element_text(size = 16),
