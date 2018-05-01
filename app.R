@@ -51,7 +51,7 @@ ui <- navbarPage(
       condition = "output.set_cond == true",
       fileInput(
         inputId = "history_upload", 
-        label = "upload history",
+        label = "upload traktor history",
         accept = c(".nml"), buttonLabel = "browse",
         placeholder = "no file selected", multiple = TRUE
         )
@@ -111,15 +111,7 @@ ui <- navbarPage(
                withSpinner(DT::dataTableOutput(outputId = "set_table"),
                                                 type = 8)
                )))
-    )),
-     
-  # about page -----------------
-  
-  tabPanel(title="about", 
-           fluidRow(column(12, includeMarkdown("about.Rmd")
-                           )
-                    )
-           )
+    ))
   )
 
 
