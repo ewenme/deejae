@@ -2,14 +2,16 @@
 output: html_document
 ---
 
-**deejae** is an open-source project to help digital DJs explore their selections. Native support is currently provided for [Traktor](https://www.native-instruments.com/en/products/traktor/) only. For any feedback or enquiries, [e-mail me](ewenhenderson@gmail.com).
+**privacy**
+
+this project does not store any data you upload beyond temporary files necessary for the app to function, while you're using it (this does mean you will need to re-upload your history, the next time you visit). 
 
 **credits**
 
-The primary typeface family in the app is [Work Sans](https://github.com/weiweihuanghuang/Work-Sans), developed by [Wei Huang](https://twitter.com/w__h_). The [Shiny](https://cran.r-project.org/web/packages/shiny/index.html) development framework and extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) helped to realise this work.
+the primary typeface family in the app is [Work Sans](https://github.com/weiweihuanghuang/Work-Sans), developed by [Wei Huang](https://twitter.com/w__h_). the [Shiny](https://cran.r-project.org/web/packages/shiny/index.html) development framework and extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) helped to realise this work.
 
 **developers**
 
-Source code is available on [GitHub](https://github.com/ewenme/deejae).
+source code is available on [GitHub](https://github.com/ewenme/deejae).
 
 deejae was developed using [Shiny](https://cran.r-project.org/web/packages/shiny/index.html), an open-source web development framework powered by [R](https://www.r-project.org/) (this project is **not** affiliated with [The Comprehensive R Archive Network](https://cran.r-project.org/) or [The R Foundation](https://www.r-project.org/)). 

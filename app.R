@@ -5,16 +5,15 @@ library(shinythemes)
 library(shinycssloaders)
 library(shinyjs)
 library(shinyWidgets)
+library(xml2)
 library(lubridate)
 library(dplyr)
 library(stringr)
-library(hrbrthemes)
 library(purrr)
-library(xml2)
-library(lubridate)
 library(ggplot2)
 library(ggalt)
 library(ggrepel)
+library(hrbrthemes)
 
 # get data extraction functions
 source("extract_funcs.R")
@@ -24,40 +23,47 @@ source("extract_funcs.R")
 ui <- navbarPage(
   
   # overall layout/styles ---------------
-  "deejae", theme = shinytheme("paper"),
-  selected = "about", collapsible = TRUE,
+  title = "deejae", theme = shinytheme("paper"),
+  selected = "start", collapsible = TRUE,
   useShinyalert(),  # Set up shinyalert
   shinyjs::useShinyjs(), # set up shinyjs
   tags$head(
     # Include custom CSS
     includeCSS("styles.css"),
-    tags$style("#selection_plot{height: calc(100vh - 200px) !important;}")
+    # resize plot
+    tags$style("#set_plot{height: calc(100vh - 200px) !important;}")
     ),
   
-  # selection UI -----------------
+  # start page -------------------
+  tabPanel(title="start", 
+           fluidRow(column(12, includeMarkdown("start.Rmd")
+                           )
+                    )
+           ),
   
-    # set history page
+  # app UI -----------------
+  
+    # set app page
     tabPanel(title="app", fluidRow(column(3, wellPanel(
     
-    # input: history file upload
+    # input: history files upload
     conditionalPanel(
       condition = "output.set_cond == true",
       fileInput(
-        inputId = "selection_upload", 
+        inputId = "history_upload", 
         label = "upload history",
         accept = c(".nml"), buttonLabel = "browse",
-        placeholder = "  no file selected", multiple = TRUE
+        placeholder = "no file selected", multiple = TRUE
         )
       ),
     
-    # input: set or summary switcher
+    # input: set-by-set or summary view
     conditionalPanel(
       condition = "output.set_cond == false",
       radioButtons(
         inputId = "set_view", label = "selection type",
-        choices = list("all selections" = 1, "set selection" = 2),
-        selected = 2
-      )
+        choices = list("set-by-set" = 1, "all sets" = 2),
+        selected = 1)
     ),
     
     tags$hr(),
@@ -66,28 +72,27 @@ ui <- navbarPage(
     
     # input: select set
     conditionalPanel(
-      condition = "output.set_cond == false && input.set_view == 2",
+      condition = "output.set_cond == false && input.set_view == 1",
       selectInput(
         inputId = "set_select", label = "choose a set",
-        choices = ""
-        )
+        choices = "")
       ),
     
     # all selections view
     
-    # input: x-variable
+    # input: plot x-variable
     conditionalPanel(
-      condition = "output.set_cond == false && input.set_view == 1",
-      selectInput(inputId = "selection_xvar", label = "wot 2 plot",
+      condition = "output.set_cond == false && input.set_view == 2",
+      selectInput(inputId = "set_xvar", label = "wot 2 plot",
                   c("artists"="artist_name", "BPM"="bpm", 
                     "release years"="release_year"),
                   selected = "bpm")
       ),
     
-    # input: set quarter
+    # input: stage of set slider
     conditionalPanel(
       condition = "output.set_cond == false && input.set_view == 1",
-      sliderInput(inputId = "set_quarter", label = "set stage",
+      sliderInput(inputId = "set_stage", label = "set stage",
                   min = 1, max = 4, value = c(1, 4), step = 1,
                   pre = "Q")
     )
@@ -95,15 +100,15 @@ ui <- navbarPage(
     
     column(9, tabsetPanel(
       
-      # set plot view
+      # output: set plot
       tabPanel("visualise",
                tags$br(),
-               withSpinner(plotOutput(outputId = "selection_plot"),
+               withSpinner(plotOutput(outputId = "set_plot"),
                                                 type = 8)
                ),
-      # set table view
+      # output: set table view
       tabPanel("table view",
-               withSpinner(DT::dataTableOutput(outputId = "selection_table"),
+               withSpinner(DT::dataTableOutput(outputId = "set_table"),
                                                 type = 8)
                )))
     )),
@@ -111,7 +116,7 @@ ui <- navbarPage(
   # about page -----------------
   
   tabPanel(title="about", 
-           fluidRow(column(6, includeMarkdown("about.Rmd")
+           fluidRow(column(12, includeMarkdown("about.Rmd")
                            )
                     )
            )
@@ -127,14 +132,14 @@ server <- function(input, output, session) {
   selection_data <- reactive({
     
     # check for history upload
-    upload <- input$selection_upload
+    upload <- input$history_upload
     if (is.null(upload)) return(NULL)
     
     # filenames object
-    filenames <- input$selection_upload$name
+    filenames <- input$history_upload$name
     
     # read history data files
-    df <- map(input$selection_upload$datapath, read_traktor_history)
+    df <- map(input$history_upload$datapath, read_traktor_history)
     
     # set names of data files to filenames
     names(df) <- filenames
@@ -203,7 +208,7 @@ server <- function(input, output, session) {
         # add track end time field
         end_time = set_time + duration,
         # add 'set quarter' field
-        set_quarter = ntile(set_time, n=4)
+        set_stage = ntile(set_time, n=4)
         ) %>%
       # separate sets if >= 5 mins silence
       ungroup()
@@ -215,12 +220,12 @@ server <- function(input, output, session) {
   # selection data filtered by app inputs
   selection_data_filtered <- reactive({
     
-    req(input$selection_upload)
+    req(input$history_upload)
 
     df <- selection_data()
     
     # filter for current set choice
-    df <- dplyr::filter(df, set_quarter %in% input$set_quarter)
+    df <- dplyr::filter(df, set_stage %in% input$set_stage)
     
     return(df)
     
@@ -229,7 +234,7 @@ server <- function(input, output, session) {
   # set data filtered by app inputs
   set_data <- reactive({
     
-    req(input$selection_upload)
+    req(input$history_upload)
     req(input$set_select)
     
     df <- selection_data()
@@ -241,10 +246,10 @@ server <- function(input, output, session) {
     
   })
   
-  # sets page ------------------------------------------------------
+  # app server ------------------------------------------------------
   
   # sets upload success pop-up 
-  observeEvent(input$selection_upload, {
+  observeEvent(input$history_upload, {
     # Show a modal when the button is pressed
     shinyalert(title = "history file(s) uploaded.", type = "success",
                closeOnClickOutside = TRUE)
@@ -253,7 +258,7 @@ server <- function(input, output, session) {
   # update set select input based on user collection
   observe({
     
-    req(input$selection_upload)
+    req(input$history_upload)
 
     updateSelectInput(session, "set_select", 
                       choices = unique(selection_data()$set_date_formatted)
@@ -262,39 +267,39 @@ server <- function(input, output, session) {
   
   # condition to use in the set selection conditional UI
   output$set_cond <- reactive({
-    is.null(input$selection_upload)
+    is.null(input$history_upload)
   })
   outputOptions(output, "set_cond", suspendWhenHidden = FALSE)
   
   # sets plot
-  output$selection_plot <- renderPlot({
+  output$set_plot <- renderPlot({
     
     # get user inputs
-    req(input$selection_upload)
+    req(input$history_upload)
     
-    if (input$set_view == 1) {
+    if (input$set_view == 2) {
       
       # get all selections data
       df <- selection_data_filtered() 
       
-      req(input$selection_xvar)
+      req(input$set_xvar)
       
-      if (input$selection_xvar %in% c("bpm", "release_year")) {
+      if (input$set_xvar %in% c("bpm", "release_year")) {
         
-        p <- ggplot(data = df, aes_string(x=input$selection_xvar)) +
+        p <- ggplot(data = df, aes_string(x=input$set_xvar)) +
           geom_density(colour="#E100FF") +
           ylab("% of selections") +
           scale_y_percent() +
           theme_ipsum(base_family = "Work Sans", grid = "Y",
                       base_size = 16)
         
-      } else if (input$selection_xvar %in% c("artist_name")) {
+      } else if (input$set_xvar %in% c("artist_name")) {
         
         p <- df %>%
-          count(.dots=input$selection_xvar) %>%
+          count(.dots=input$set_xvar) %>%
           top_n(10, wt=n) %>%
           na.omit() %>%
-          ggplot(aes_string(x=paste0("reorder(", input$selection_xvar, ", n)"))) +
+          ggplot(aes_string(x=paste0("reorder(", input$set_xvar, ", n)"))) +
           geom_col(aes(y=n), fill="#E100FF") +
           ylab("# of selections") +
           coord_flip() +
@@ -304,7 +309,7 @@ server <- function(input, output, session) {
       
       # set common plot elements
       p +
-        labs(title = paste0(str_replace_all(input$selection_xvar, "_", " "), ", ",
+        labs(title = paste0(str_replace_all(input$set_xvar, "_", " "), ", ",
                             as.character(format(min(df$set_date), "%B %Y")),
                             " - ", as.character(format(max(df$set_date), "%B %Y")),
                             " selections"),
@@ -313,7 +318,7 @@ server <- function(input, output, session) {
               axis.title.x = element_text(size = 16),
               axis.title.y = element_text(size = 16))
         
-    } else if (input$set_view == 2) {
+    } else if (input$set_view == 1) {
     
       # get set data
       df <- set_data()
@@ -347,12 +352,12 @@ server <- function(input, output, session) {
   })
   
   # sets table view
-  output$selection_table <- DT::renderDataTable({
+  output$set_table <- DT::renderDataTable({
     
     # input$collection_upload will be NULL initially. After the user selects
     # and uploads a file, head of that data file will be shown.
     
-    req(input$selection_upload)
+    req(input$history_upload)
     
     if (input$set_view == 1) {
       

@@ -1,0 +1,13 @@
+---
+output: html_document
+---
+
+welcome to **deejae**, an open-source project to help digital DJs explore and understand their selections. native support is currently provided for [Traktor](https://www.native-instruments.com/en/products/traktor/) only. [e-mail me](ewenhenderson@gmail.com) with feedback/enquiries/etc.
+
+**navigation basics**
+
+all app functionality is located in the **app** tab, accessed from the navbar above. visit the **about** tab to learn more about the project, and come back here whenever you need some help.
+
+**uploading your set history**
+
+from the **app** screen, hit *BROWSE* under *upload history* to explore your files.
