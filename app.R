@@ -295,8 +295,7 @@ server <- function(input, output, session) {
           geom_density(colour="#E100FF") +
           ylab("% of selections") +
           scale_y_percent() +
-          theme_ipsum(base_family = "Work Sans", grid = "Y",
-                      base_size = 16)
+          theme_ipsum_ps(grid = "Y", base_size = 16)
         
       } else if (input$set_xvar %in% c("artist_name")) {
         
@@ -308,8 +307,7 @@ server <- function(input, output, session) {
           geom_col(aes(y=n), fill="#E100FF") +
           ylab("# of selections") +
           coord_flip() +
-          theme_ipsum(base_family = "Work Sans", grid = "X",
-                      base_size = 16)
+          theme_ipsum_ps(grid = "X", base_size = 16)
       }
       
       # set common plot elements
@@ -321,7 +319,9 @@ server <- function(input, output, session) {
              x=NULL) +
         theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
               axis.title.x = element_text(size = 16),
-              axis.title.y = element_text(size = 16))
+              axis.title.y = element_text(size = 16),
+              axis.text.x = element_text(size = 14),
+              axis.text.y = element_text(size = 14))
         
     } else if (input$set_view == 1) {
     
@@ -334,8 +334,7 @@ server <- function(input, output, session) {
         nrow(df) <= 20 ~ 5,
         nrow(df) <= 30 ~ 4,
         nrow(df) <= 40 ~ 3,
-        nrow(df) <= 50 ~ 2,
-        nrow(df) > 50 ~ 1
+        nrow(df) > 40 ~ 2
         )
     
       # plot set progress
@@ -345,15 +344,19 @@ server <- function(input, output, session) {
                     color="#e3e2e1", colour_x = input$track_start_col, 
                     colour_xend = input$track_end_col,
                     dot_guide=TRUE, dot_guide_size=0.25) +
-      geom_text_repel(nudge_x = max(df$set_time), size=obj_size, segment.size = 0,
-                      direction = "x", family = "Work Sans Light") +
+      geom_text(aes(x = end_time),
+                size=obj_size, hjust=-0.1,
+                family = "Work Sans Light") +
       scale_y_continuous(trans = "reverse") +
       scale_x_time() +
+      coord_cartesian(clip = "off") +
       labs(x="set time", y="track #") +
-      theme_ipsum(base_family = "Work Sans", grid = "X",
-                  base_size = 16) +
+      theme_ipsum_ps(grid = "X", base_size = 16) +
       theme(axis.title.x = element_text(size = 16),
-            axis.title.y = element_text(size = 16))
+            axis.title.y = element_text(size = 16),
+            axis.text.x = element_text(size = 14),
+            axis.text.y = element_text(size = 14),
+            plot.margin = margin(6, 300, 6, 6))
     }
   })
   
@@ -367,11 +370,11 @@ server <- function(input, output, session) {
     
     if (input$set_view == 1) {
       
-      df <- selection_data_filtered() }
-    
-    else if (input$set_view == 2) {
-      
       df <- set_data()
+      
+      } else if (input$set_view == 2) {
+      
+        df <- selection_data_filtered() 
       
     }
     
