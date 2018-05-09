@@ -2,13 +2,13 @@
 output: html_document
 ---
 
-welcome to **deejae**, an ongoing open-source effort to help digital DJs explore and understand their DJ sets. native support is currently provided for [Traktor](https://www.native-instruments.com/en/products/traktor/) only. [e-mail me](ewenhenderson@gmail.com) with feedback/enquiries/etc.
+welcome to **deejae**, an ongoing open-source effort to explore and visualise DJ sets. native support is currently provided for [Traktor](https://www.native-instruments.com/en/products/traktor/) sets only. [e-mail me](ewenhenderson@gmail.com) with feedback / enquiries / etc.
 
 **navigation basics**
 
-all functionality is located in the **app** tab, accessed from the navbar above. come back here to learn more about the project, or whenever you need some help working the app.
+all functionality is located in the **app** tab, accessed from the navbar above. please read the next section (*uploading your traktor sets*) for help getting started. come back here to learn more about the project, or whenever you need pointers with working the app.
 
-**uploading your traktor history**
+**uploading your traktor sets**
 
 deejae needs information about your sets to work (which means you should visit this app from the machine you use for DJing). from the **app** screen, hit *BROWSE* under *upload traktor history* to explore your files and find your **traktor history** (stored as a collection of .nml **history playlists** automatically generated for each of your sessions). the exact location depends on where you keep your [**Traktor Root Directory**](https://support.native-instruments.com/hc/en-us/articles/210274225-What-Files-and-Folders-does-TRAKTOR-Install-on-my-System-), but by default the path is:
 
@@ -23,7 +23,7 @@ this project does not store any data you upload beyond temporary files necessary
 
 **credits**
 
-the primary typeface family in the app is [Work Sans](https://github.com/weiweihuanghuang/Work-Sans), developed by [Wei Huang](https://twitter.com/w__h_). the [Shiny](https://cran.r-project.org/web/packages/shiny/index.html) development framework and extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) helped to realise this work.
+the primary typeface family in the app is [Work Sans](https://github.com/weiweihuanghuang/Work-Sans), developed by [Wei Huang](https://twitter.com/w__h_). the [Shiny](https://cran.r-project.org/web/packages/shiny/index.html) development framework and extensions [shinyjs](https://cran.r-project.org/web/packages/shinyjs/index.html), [shinyalert](https://cran.r-project.org/web/packages/shinyalert/index.html) and [shinythemes](http://rstudio.github.io/shinythemes/) helped to fully realise this work.
 
 **for developers**
 

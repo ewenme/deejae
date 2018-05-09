@@ -14,6 +14,7 @@ library(ggplot2)
 library(ggalt)
 library(ggrepel)
 library(hrbrthemes)
+library(colourpicker)
 
 # get data extraction functions
 source("extract_funcs.R")
@@ -51,7 +52,7 @@ ui <- navbarPage(
       condition = "output.set_cond == true",
       fileInput(
         inputId = "history_upload", 
-        label = "upload traktor history",
+        label = "   upload traktor history",
         accept = c(".nml"), buttonLabel = "browse",
         placeholder = "no file selected", multiple = TRUE
         )
@@ -61,7 +62,7 @@ ui <- navbarPage(
     conditionalPanel(
       condition = "output.set_cond == false",
       radioButtons(
-        inputId = "set_view", label = "selection type",
+        inputId = "set_view", label = "set view",
         choices = list("set-by-set" = 1, "all sets" = 2),
         selected = 1)
     ),
@@ -69,33 +70,45 @@ ui <- navbarPage(
     tags$hr(),
     
     # set view
-    
-    # input: select set
     conditionalPanel(
       condition = "output.set_cond == false && input.set_view == 1",
+      
+      # input: select set
       selectInput(
         inputId = "set_select", label = "choose a set",
-        choices = "")
-      ),
+        choices = ""),
+      
+      splitLayout(
+      # input: track start plot colour
+      colourInput(inputId = "track_start_col",
+                  label = "track start",
+                  value = "#7F00FF", showColour = "background",
+                  allowTransparent = TRUE),
+      
+      # input: track end plot colour
+      colourInput(inputId = "track_end_col",
+                  label = "track end",
+                  value = "#E100FF", showColour = "background",
+                  allowTransparent = TRUE),
+      cellArgs = list (style = "overflow:visible")
+      )),
     
     # all selections view
     
-    # input: plot x-variable
     conditionalPanel(
       condition = "output.set_cond == false && input.set_view == 2",
+      
+      # input: plot x-variable
       selectInput(inputId = "set_xvar", label = "wot 2 plot",
                   c("artists"="artist_name", "BPM"="bpm", 
                     "release years"="release_year"),
-                  selected = "bpm")
-      ),
-    
-    # input: stage of set slider
-    conditionalPanel(
-      condition = "output.set_cond == false && input.set_view == 1",
+                  selected = "bpm"),
+      
+      # input: stage of set slider
       sliderInput(inputId = "set_stage", label = "set stage",
                   min = 1, max = 4, value = c(1, 4), step = 1,
                   pre = "Q")
-    )
+      )
     )),
     
     column(9, tabsetPanel(
@@ -329,8 +342,9 @@ server <- function(input, output, session) {
       ggplot(data = df, aes(y=track_no, x=set_time, xend=end_time,
                           label=paste3(artist_name, track_title))) +
       geom_dumbbell(size=obj_size, size_x = obj_size, size_xend = obj_size,
-                    color="#e3e2e1", colour_x = "#7F00FF", colour_xend = "#E100FF",
-                    alpha=0.6, dot_guide=TRUE, dot_guide_size=0.25) +
+                    color="#e3e2e1", colour_x = input$track_start_col, 
+                    colour_xend = input$track_end_col,
+                    dot_guide=TRUE, dot_guide_size=0.25) +
       geom_text_repel(nudge_x = max(df$set_time), size=obj_size, segment.size = 0,
                       direction = "x", family = "Work Sans Light") +
       scale_y_continuous(trans = "reverse") +
