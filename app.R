@@ -105,7 +105,7 @@ ui <- navbarPage(
                   selected = "bpm"),
       
       # input: stage of set slider
-      sliderInput(inputId = "set_stage", label = "set stage",
+      sliderInput(inputId = "set_stage", label = "set stage (quarter)",
                   min = 1, max = 4, value = c(1, 4), step = 1,
                   pre="Q"),
       
@@ -238,7 +238,8 @@ server <- function(input, output, session) {
     df <- selection_data()
     
     # filter for current set choice
-    df <- dplyr::filter(df, set_stage %in% input$set_stage)
+    df <- dplyr::filter(df, set_stage >= input$set_stage[1],
+                        set_stage <= input$set_stage[2])
     
     return(df)
     
@@ -320,7 +321,7 @@ server <- function(input, output, session) {
       } else if (input$set_xvar %in% c("track_title")) {
           
         p <- df %>%
-          group_by(audio_id, track_title, artist_name) %>%
+          group_by(track_title, artist_name) %>%
           summarise(n=n()) %>% ungroup() %>%
           mutate(artist_track = paste3(artist_name, track_title)) %>%
           top_n(10, wt=n) %>%
@@ -382,39 +383,39 @@ server <- function(input, output, session) {
     }
   })
   
-  # sets table view
-  output$set_table <- DT::renderDataTable({
-    
-    # input$collection_upload will be NULL initially. After the user selects
-    # and uploads a file, head of that data file will be shown.
-    
-    req(input$history_upload)
-    
-    if (input$set_view == 1) {
-      
-      df <- set_data()
-      
-      } else if (input$set_view == 2) {
-      
-        df <- selection_data_filtered() 
-      
-    }
-    
-    # create datatable
-    df <- subset(df, select = c(track_no, track_title, artist_name, album_title,
-                                bpm, release_year, import_date, last_played,
-                                play_count, track_length_formatted))
-    
-    DT::datatable(df, rownames = FALSE,
-                  colnames = c("#", "track", "artist", "album", "bpm", 
-                               "release year","date added", "last played", "play count",
-                               "track length"),
-                  options = list(
-                    order = list(list(1, 'asc')),
-                    dom = 'tp',
-                    pageLength = 5
-                  ))
-  })
+  # # sets table view
+  # output$set_table <- DT::renderDataTable({
+  #   
+  #   # input$collection_upload will be NULL initially. After the user selects
+  #   # and uploads a file, head of that data file will be shown.
+  #   
+  #   req(input$history_upload)
+  #   
+  #   if (input$set_view == 1) {
+  #     
+  #     df <- set_data()
+  #     
+  #     } else if (input$set_view == 2) {
+  #     
+  #       df <- selection_data_filtered() 
+  #     
+  #   }
+  #   
+  #   # create datatable
+  #   df <- subset(df, select = c(track_no, track_title, artist_name, album_title,
+  #                               bpm, release_year, import_date, last_played,
+  #                               play_count, track_length_formatted))
+  #   
+  #   DT::datatable(df, rownames = FALSE,
+  #                 colnames = c("#", "track", "artist", "album", "bpm", 
+  #                              "release year","date added", "last played", "play count",
+  #                              "track length"),
+  #                 options = list(
+  #                   order = list(list(1, 'asc')),
+  #                   dom = 'tp',
+  #                   pageLength = 5
+  #                 ))
+  # })
 }
 
 # Run the application 
