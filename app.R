@@ -100,30 +100,38 @@ ui <- navbarPage(
       
       # input: plot x-variable
       selectInput(inputId = "set_xvar", label = "wot 2 plot",
-                  c("artists"="artist_name", "BPM"="bpm", 
-                    "release years"="release_year"),
+                  c("tracks"="track_title", "artists"="artist_name", 
+                    "BPM"="bpm", "release years"="release_year"),
                   selected = "bpm"),
       
       # input: stage of set slider
       sliderInput(inputId = "set_stage", label = "set stage",
                   min = 1, max = 4, value = c(1, 4), step = 1,
-                  pre = "Q")
+                  pre="Q"),
+      
+      # input: plot colour
+      colourInput(inputId = "plot_col",
+                  label = "plot colour",
+                  value = "#7F00FF", showColour = "background")
       )
     )),
     
-    column(9, tabsetPanel(
+    column(9, 
+           # tabsetPanel(
+      
+      # tabPanel("visualise",
       
       # output: set plot
-      tabPanel("visualise",
-               tags$br(),
-               withSpinner(plotOutput(outputId = "set_plot"),
-                                                type = 8)
-               ),
-      # output: set table view
-      tabPanel("table view",
-               withSpinner(DT::dataTableOutput(outputId = "set_table"),
-                                                type = 8)
-               )))
+      tags$br(),
+      withSpinner(plotOutput(outputId = "set_plot"),
+                           type = 8)
+               )
+    # ,
+      # # output: set table view
+      # tabPanel("table view",
+      #          withSpinner(DT::dataTableOutput(outputId = "set_table"),
+      #                      type = 8)
+      #          )
     ))
   )
 
@@ -292,7 +300,7 @@ server <- function(input, output, session) {
       if (input$set_xvar %in% c("bpm", "release_year")) {
         
         p <- ggplot(data = df, aes_string(x=input$set_xvar)) +
-          geom_density(colour="#E100FF") +
+          geom_density(colour=input$plot_col) +
           ylab("% of selections") +
           scale_y_percent() +
           theme_ipsum_ps(grid = "Y", base_size = 16)
@@ -304,19 +312,33 @@ server <- function(input, output, session) {
           top_n(10, wt=n) %>%
           na.omit() %>%
           ggplot(aes_string(x=paste0("reorder(", input$set_xvar, ", n)"))) +
-          geom_col(aes(y=n), fill="#E100FF") +
+          geom_col(aes(y=n), fill=input$plot_col) +
           ylab("# of selections") +
           coord_flip() +
           theme_ipsum_ps(grid = "X", base_size = 16)
-      }
+      
+      } else if (input$set_xvar %in% c("track_title")) {
+          
+        p <- df %>%
+          group_by(audio_id, track_title, artist_name) %>%
+          summarise(n=n()) %>% ungroup() %>%
+          mutate(artist_track = paste3(artist_name, track_title)) %>%
+          top_n(10, wt=n) %>%
+          na.omit() %>%
+          ggplot(aes(x=reorder(artist_track, n))) +
+          geom_col(aes(y=n), fill=input$plot_col) +
+          ylab("# of selections") +
+          coord_flip() +
+          theme_ipsum_ps(grid = "X", base_size = 16)
+        
+        }
       
       # set common plot elements
       p +
-        labs(title = paste0(str_replace_all(input$set_xvar, "_", " "), ", ",
+        labs(title = str_to_lower(paste0(str_replace_all(input$set_xvar, "_", " "), ", ",
                             as.character(format(min(df$set_date), "%B %Y")),
                             " - ", as.character(format(max(df$set_date), "%B %Y")),
-                            " selections"),
-             x=NULL) +
+                            " selections")), x=NULL) +
         theme(plot.margin = unit(c(0.35, 0.2, 0.3, 0.35), "cm"),
               axis.title.x = element_text(size = 16),
               axis.title.y = element_text(size = 16),
@@ -379,12 +401,12 @@ server <- function(input, output, session) {
     }
     
     # create datatable
-    df <- subset(df, select = c(track_no, set_time, track_title, artist_name, album_title,
+    df <- subset(df, select = c(track_no, track_title, artist_name, album_title,
                                 bpm, release_year, import_date, last_played,
                                 play_count, track_length_formatted))
     
     DT::datatable(df, rownames = FALSE,
-                  colnames = c("#", "set time", "track", "artist", "album", "bpm", 
+                  colnames = c("#", "track", "artist", "album", "bpm", 
                                "release year","date added", "last played", "play count",
                                "track length"),
                   options = list(
