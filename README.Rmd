@@ -5,6 +5,8 @@ output: github_document
 
 > *Copyright 2018 [ewen](http://ewen.io/). Licensed under the MIT license.*
 
+![deejae](https://github.com/ewenme/deejae/blob/master/example_animation.gif)
+
 deejae is a an ongoing open-source effort to help DJs explore and visualise their selections, built using the [Shiny](https://shiny.rstudio.com/) web development framework. Native support is currently provided for [Traktor](https://www.native-instruments.com/en/products/traktor/) users only. Visit the app at [https://ewenme.shinyapps.io/deejae](https://ewenme.shinyapps.io/deejae).
 
 ## Credits
