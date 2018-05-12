@@ -1,7 +1,7 @@
 deejae
 ================
 
-> *Copyright 2018 [ewen](http://ewen.io/). Licensed under the MIT license.*
+> *Copyright 2018 [Ewen Henderson](http://ewen.io/). Licensed under the MIT license.*
 
 ![deejae](https://github.com/ewenme/deejae/blob/master/example_animation.gif)
 
