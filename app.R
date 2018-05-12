@@ -1,4 +1,5 @@
 # package load
+library(devtools)
 library(shiny)
 library(shinyalert)
 library(shinythemes)
@@ -15,9 +16,14 @@ library(ggalt)
 library(ggrepel)
 library(hrbrthemes)
 library(colourpicker)
+library(hms)
+library(extrafont)
 
 # get data extraction functions
 source("extract_funcs.R")
+
+# get font
+update_geom_font_defaults(family = "IBMPlexSans-Light")
 
 # Define UI for application ------------------------------------------------
 
@@ -369,7 +375,7 @@ server <- function(input, output, session) {
                     dot_guide=TRUE, dot_guide_size=0.25) +
       geom_text(aes(x = end_time),
                 size=obj_size, hjust=-0.1,
-                family = "Work Sans Light") +
+                family = "IBMPlexSans-Light") +
       scale_y_continuous(trans = "reverse") +
       scale_x_time() +
       coord_cartesian(clip = "off") +
