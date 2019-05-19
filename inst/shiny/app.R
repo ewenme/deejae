@@ -20,7 +20,7 @@ library(hms)
 source("helper-funcs.R")
 
 # get fonts
-import_plex_sans()
+# import_plex_sans()
 
 # get font
 update_geom_font_defaults(family = "IBMPlexSans-Light")
