@@ -14,6 +14,7 @@ library(ggalt)
 library(hrbrthemes)
 library(xml2)
 library(extrafont)
+library(hms)
 
 # get data extraction functions
 source("helper-funcs.R")

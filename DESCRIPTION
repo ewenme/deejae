@@ -28,6 +28,7 @@ Imports:
     dplyr,
     purrr,
     lubridate,
+    hms,
     stringr,
     xml2,
     ggplot2,
