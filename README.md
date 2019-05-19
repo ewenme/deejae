@@ -13,7 +13,7 @@ visualise their selections, built using the
 [Shiny](https://shiny.rstudio.com/) web development framework. Native
 support is currently provided for
 [Traktor](https://www.native-instruments.com/en/products/traktor/) users
-only. Visit the app at <https://ewenme.shinyapps.io/deejae>.
+only.
 
 ## Use
 
