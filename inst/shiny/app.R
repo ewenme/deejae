@@ -5,27 +5,28 @@ library(shinyhelper)
 library(shinyjs)
 library(shinythemes)
 library(shinyWidgets)
-library(xml2)
+library(colourpicker)
 library(lubridate)
 library(dplyr)
 library(stringr)
-library(purrr)
 library(ggplot2)
 library(ggalt)
-library(ggrepel)
 library(hrbrthemes)
-library(colourpicker)
-library(hms)
+library(xml2)
 library(extrafont)
 
 # get data extraction functions
-source("extract_funcs.R")
+source("helper-funcs.R")
 
 # get font
 update_geom_font_defaults(family = "IBMPlexSans-Light")
 
+
+# UI ----------------------------------------------------------------------
+
 ui <- fluidPage(
 
+  # global settings / styles
   title = "deejae", theme = shinytheme("paper"),
 
   useShinyalert(),
@@ -37,8 +38,10 @@ ui <- fluidPage(
     ),
 
   fluidRow(
+
+    # sidebar / inputs
     column(
-      3,
+      2,
 
       h2("deejae"),
 
@@ -47,8 +50,7 @@ ui <- fluidPage(
         condition = "output.set_cond == true",
         helper(
           fileInput(
-            inputId = "history_upload",
-            label = "   upload traktor history",
+            "history_upload", label = "   upload traktor history",
             accept = c(".nml"), buttonLabel = "browse",
             placeholder = "no file selected", multiple = TRUE
           ),
@@ -59,7 +61,7 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "output.set_cond == false",
         radioButtons(
-          inputId = "set_view", label = "set view",
+          "set_view", label = "set view",
           choices = list("set-by-set" = 1, "all sets" = 2),
           selected = 1)
       ),
@@ -70,21 +72,15 @@ ui <- fluidPage(
 
         # select set
         selectInput(
-          inputId = "set_select", label = "choose a set",
+          "set_select", label = "choose a set",
           choices = ""),
 
+        # set plot colours
         splitLayout(
-          # track start plot colour
-          colourInput(inputId = "track_start_col",
-                      label = "track start",
-                      value = "#7F00FF", showColour = "background",
-                      allowTransparent = TRUE),
-
-          # track end plot colour
-          colourInput(inputId = "track_end_col",
-                      label = "track end",
-                      value = "#E100FF", showColour = "background",
-                      allowTransparent = TRUE),
+          colourInput("track_start_col", label = "track start",
+                      value = "#7F00FF", showColour = "background"),
+          colourInput("track_end_col", label = "track end",
+                      value = "#E100FF", showColour = "background"),
           cellArgs = list (style = "overflow:visible")
           )),
 
@@ -92,42 +88,42 @@ ui <- fluidPage(
         condition = "output.set_cond == false && input.set_view == 2",
 
         # plot x-variable
-        selectInput(inputId = "set_xvar", label = "wot 2 plot",
+        selectInput("set_xvar", label = "wot 2 plot",
                     c("tracks"="track_title", "artists"="artist_name",
                       "BPM"="bpm", "release years"="release_year"),
                     selected = "bpm"),
 
         # stage of set slider
-        sliderInput(inputId = "set_stage", label = "set stage (quarter)",
+        sliderInput("set_stage", label = "set stage (quarter)",
                     min = 1, max = 4, value = c(1, 4), step = 1,
                     pre="Q"),
 
-      # plot colour
-      colourInput(inputId = "plot_col",
-                  label = "plot colour",
-                  value = "#7F00FF", showColour = "background")
+        # plot colour
+        colourInput("plot_col", label = "plot colour",
+                    value = "#7F00FF", showColour = "background")
+        ),
+
+      # credits
+      HTML(paste("<p>Made by <a href='https://twitter.com/ewen_'>@ewen_</a>.",
+                 "Peep the <a href='https://github.com/ewenme/deejae'>code</a>.</p>"))
       ),
 
-    HTML(paste("<p>Made by <a href='https://twitter.com/ewen_'>@ewen_</a>.",
-               "Peep the <a href='https://github.com/ewenme/deejae'>code</a>.</p>"))
-    ),
-
+    # chart area
     column(
-      9,
-
-      # set plot
+      10,
       withSpinner(
-        plotOutput(outputId = "set_plot"),
+        plotOutput("set_plot", width = "100%"),
         type = 8)
       )
     )
   )
 
+
+# server ------------------------------------------------------------------
+
 server <- function(input, output, session) {
 
   observe_helpers()
-
-  # data objects ----------------------------
 
   # uploaded history data
   selection_data <- reactive({
@@ -140,81 +136,23 @@ server <- function(input, output, session) {
     filenames <- input$history_upload$name
 
     # read history data files
-    df <- map(input$history_upload$datapath, read_traktor_history)
+    df <- lapply(input$history_upload$datapath, read_traktor_history)
 
     # set names of data files to filenames
     names(df) <- filenames
 
     # bind rows of history data files, id col as filename
-    df <- bind_rows(df, .id="import_file")
+    df <- bind_rows(df, .id = "import_file")
 
-    df <- df %>%
-      # reduce import file name field
-      mutate(import_file = str_extract(import_file, "history.*"))
+    # reduce import file name field
+    df$import_file <- str_extract(df$import_file, "history.*")
 
     # create formatted set date
     df$set_date <- str_remove_all(str_extract(df$import_file, "_(.*?)_"), "_")
     df$set_date <- ymd(df$set_date)
     df$set_date_formatted <- as.character(format(df$set_date, "%d %B, %Y"))
 
-    df <- df %>%
-      # arrange by set date / start time
-      arrange(set_date, start_time) %>%
-      group_by(set_date) %>%
-      mutate(
-        # set track no. field
-        track_no = row_number(),
-        # add set time field
-        set_time = (start_time - first(start_time)),
-        # set max duration of last two tracks to 15 mins
-        duration = if_else(track_no >= max(track_no) - 1 & duration > 900,
-                           900, duration),
-        # add track end time field
-        end_time = set_time + duration,
-        # calc gap b/w start time & e/o prev. track
-        gap = abs(set_time - lag(end_time)),
-        gap = if_else(is.na(gap), 0, gap),
-        # define set 'break' as gap > 15 mins
-        set_break = if_else(gap > 900, 1, 0),
-        # rename set dates if new set
-        new_set = cumsum(set_break)) %>%
-        # remove sets smaller than five tracks
-      group_by(set_date, new_set) %>%
-      filter(n() >= 5) %>%
-      group_by(set_date) %>%
-      mutate(
-        new_set = cumsum(set_break),
-        set_date_formatted = if_else(
-          new_set == 0, paste(set_date_formatted),
-          paste0(set_date_formatted, " (", new_set, ")")
-          )
-        ) %>%
-      ungroup() %>%
-      # remove intermediary fields
-      select(-new_set, -set_break, -gap)
-
-    df <- df %>%
-      # reset set time fields (now new sets defined)
-      group_by(set_date_formatted) %>%
-      mutate(
-        # set track no. field
-        track_no = row_number(),
-        # add set time field
-        set_time = (start_time - first(start_time)),
-        # set max duration of last two tracks to 15 mins
-        duration = if_else(
-          track_no >= max(track_no) - 1 & duration > 900,
-          900, duration
-          ),
-        # add track end time field
-        end_time = set_time + duration,
-        # add 'set quarter' field
-        set_stage = ntile(set_time, n=4)
-        ) %>%
-      # separate sets if >= 5 mins silence
-      ungroup()
-
-    return(df)
+    tidy_selections(df)
 
   })
 
@@ -341,11 +279,12 @@ server <- function(input, output, session) {
 
       # text size
       obj_size <- case_when(
-        nrow(df) <= 10 ~ 6,
-        nrow(df) <= 20 ~ 5,
-        nrow(df) <= 30 ~ 4,
-        nrow(df) <= 40 ~ 3,
-        nrow(df) > 40 ~ 2
+        nrow(df) <= 10 ~ 7,
+        nrow(df) <= 20 ~ 6,
+        nrow(df) <= 30 ~ 5,
+        nrow(df) <= 40 ~ 4,
+        nrow(df) <= 50 ~ 3,
+        nrow(df) > 50 ~ 2
         )
 
       # plot set progress
@@ -355,8 +294,7 @@ server <- function(input, output, session) {
                     color="#e3e2e1", colour_x = input$track_start_col,
                     colour_xend = input$track_end_col,
                     dot_guide=TRUE, dot_guide_size=0.25) +
-      geom_text(aes(x = end_time),
-                size=obj_size, hjust=-0.1,
+      geom_text(aes(x = end_time), size=obj_size, hjust=-0.1,
                 family = "IBMPlexSans-Light") +
       scale_y_continuous(trans = "reverse") +
       scale_x_time() +
@@ -370,40 +308,6 @@ server <- function(input, output, session) {
             plot.margin = margin(6, 300, 6, 6))
     }
   })
-
-  # # sets table view
-  # output$set_table <- DT::renderDataTable({
-  #
-  #   # input$collection_upload will be NULL initially. After the user selects
-  #   # and uploads a file, head of that data file will be shown.
-  #
-  #   req(input$history_upload)
-  #
-  #   if (input$set_view == 1) {
-  #
-  #     df <- set_data()
-  #
-  #     } else if (input$set_view == 2) {
-  #
-  #       df <- selection_data_filtered()
-  #
-  #   }
-  #
-  #   # create datatable
-  #   df <- subset(df, select = c(track_no, track_title, artist_name, album_title,
-  #                               bpm, release_year, import_date, last_played,
-  #                               play_count, track_length_formatted))
-  #
-  #   DT::datatable(df, rownames = FALSE,
-  #                 colnames = c("#", "track", "artist", "album", "bpm",
-  #                              "release year","date added", "last played", "play count",
-  #                              "track length"),
-  #                 options = list(
-  #                   order = list(list(1, 'asc')),
-  #                   dom = 'tp',
-  #                   pageLength = 5
-  #                 ))
-  # })
 }
 
 # Run the application

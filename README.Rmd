@@ -1,13 +1,40 @@
 ---
-title: "deejae"
 output: github_document
 ---
 
-> *Copyright 2018 [Ewen Henderson](http://ewen.io/). Licensed under the MIT license.*
+<!-- README.md is generated from README.Rmd. Please edit that file -->
 
-![deejae](https://github.com/ewenme/deejae/blob/master/example_animation.gif)
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# deejae
+
+> *Copyright 2019 [Ewen Henderson](http://ewen.io/). Licensed under the MIT license.*
+
+![deejae](example_screenshot.png)
 
 deejae is a an ongoing open-source effort to help DJs explore and visualise their selections, built using the [Shiny](https://shiny.rstudio.com/) web development framework. Native support is currently provided for [Traktor](https://www.native-instruments.com/en/products/traktor/) users only. Visit the app at [https://ewenme.shinyapps.io/deejae](https://ewenme.shinyapps.io/deejae).
+
+## Use
+
+Visit [apps.ewen.io/deejae](https://apps.ewen.io/deejae/) to use `deejae`.
+
+1. Upload .nml Traktor history files
+2. Explore your selections
+3. Export any visuals you wanna keep
+
+You can also run the app locally, from an R session, by simply running:
+
+```{r, eval=FALSE}
+library(shiny)
+runGitHub(repo = "ewenme/deejae", subdir = "inst/shiny")
+```
 
 ## Credits
 

@@ -61,13 +61,12 @@ read_traktor_history <- function(x) {
     record_type = xml_attr(key, "TYPE"),
     deck = xml_attr(extended, "DECK"),
     duration = xml_attr(extended, "DURATION"),
-    # extended_type = xml_attr(extended, "EXTENDEDTYPE"),
     public = xml_attr(extended, "PLAYEDPUBLIC"),
     start_date = xml_attr(extended, "STARTDATE"),
     start_time = xml_attr(extended, "STARTTIME")
   )
 
-  # join track/playlist info
+  # join track / playlist info
   data <- inner_join(track_df, playlist_df, by = "uid")
 
   # fix col classes
@@ -104,6 +103,69 @@ secondsToString <- function(x, digits=2){
            }
     )
   )
+}
+
+
+tidy_selections <- function(x) {
+
+  df <- x %>%
+    # arrange by set date / start time
+    arrange(set_date, start_time) %>%
+    group_by(set_date) %>%
+    mutate(
+      # set track no. field
+      track_no = row_number(),
+      # add set time field
+      set_time = (start_time - first(start_time)),
+      # set max duration of last two tracks to 15 mins
+      duration = if_else(track_no >= max(track_no) - 1 & duration > 900,
+                         900, duration),
+      # add track end time field
+      end_time = set_time + duration,
+      # calc gap b/w start time & e/o prev. track
+      gap = abs(set_time - lag(end_time)),
+      gap = if_else(is.na(gap), 0, gap),
+      # define set 'break' as gap > 15 mins
+      set_break = if_else(gap > 900, 1, 0),
+      # rename set dates if new set
+      new_set = cumsum(set_break)) %>%
+    # remove sets smaller than five tracks
+    group_by(set_date, new_set) %>%
+    filter(n() >= 5) %>%
+    group_by(set_date) %>%
+    mutate(
+      new_set = cumsum(set_break),
+      set_date_formatted = if_else(
+        new_set == 0, paste(set_date_formatted),
+        paste0(set_date_formatted, " (", new_set, ")")
+      )
+    ) %>%
+    ungroup() %>%
+    # remove intermediary fields
+    select(-new_set, -set_break, -gap)
+
+  df <- df %>%
+    # reset set time fields (now new sets defined)
+    group_by(set_date_formatted) %>%
+    mutate(
+      # set track no. field
+      track_no = row_number(),
+      # add set time field
+      set_time = (start_time - first(start_time)),
+      # set max duration of last two tracks to 15 mins
+      duration = if_else(
+        track_no >= max(track_no) - 1 & duration > 900,
+        900, duration
+      ),
+      # add track end time field
+      end_time = set_time + duration,
+      # add 'set quarter' field
+      set_stage = ntile(set_time, n=4)
+    ) %>%
+    # separate sets if >= 5 mins silence
+    ungroup()
+
+  return(df)
 }
 
 # function for pasting together strings and ignoring NAs

@@ -24,6 +24,7 @@ Imports:
     shinyjs,
     shinythemes,
     shinyWidgets,
+    colourpicker,
     dplyr,
     purrr,
     lubridate,
@@ -31,8 +32,5 @@ Imports:
     xml2,
     ggplot2,
     ggalt,
-    ggrepel,
     hrbrthemes,
-    colourpicker,
-    hms,
     extrafont
