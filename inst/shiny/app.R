@@ -28,36 +28,36 @@ update_geom_font_defaults(family = "IBMPlexSans-Light")
 # Define UI for application ------------------------------------------------
 
 ui <- fluidPage(
-  
+
   title = "deejae", theme = shinytheme("paper"),
 
   useShinyalert(),
   useShinyjs(),
-  
+
   tags$head(
-    includeCSS("styles.css"),
+    includeCSS("www/styles.css"),
     tags$style("#set_plot{height: calc(100vh - 200px) !important;}")
     ),
-  
+
   fluidRow(
     column(
       3,
-      
+
       h2("deejae"),
-      
+
       # history files upload
       conditionalPanel(
         condition = "output.set_cond == true",
         helper(
           fileInput(
-            inputId = "history_upload", 
+            inputId = "history_upload",
             label = "   upload traktor history",
             accept = c(".nml"), buttonLabel = "browse",
             placeholder = "no file selected", multiple = TRUE
-          ), 
+          ),
           content = "help_upload")
       ),
-      
+
       # choose set-by-set or summary view
       conditionalPanel(
         condition = "output.set_cond == false",
@@ -66,23 +66,23 @@ ui <- fluidPage(
           choices = list("set-by-set" = 1, "all sets" = 2),
           selected = 1)
       ),
-      
+
       # set view
       conditionalPanel(
         condition = "output.set_cond == false && input.set_view == 1",
-        
+
         # select set
         selectInput(
           inputId = "set_select", label = "choose a set",
           choices = ""),
-        
+
         splitLayout(
           # track start plot colour
           colourInput(inputId = "track_start_col",
                       label = "track start",
                       value = "#7F00FF", showColour = "background",
                       allowTransparent = TRUE),
-          
+
           # track end plot colour
           colourInput(inputId = "track_end_col",
                       label = "track end",
@@ -90,34 +90,34 @@ ui <- fluidPage(
                       allowTransparent = TRUE),
           cellArgs = list (style = "overflow:visible")
           )),
-      
+
       conditionalPanel(
         condition = "output.set_cond == false && input.set_view == 2",
-        
+
         # plot x-variable
         selectInput(inputId = "set_xvar", label = "wot 2 plot",
-                    c("tracks"="track_title", "artists"="artist_name", 
+                    c("tracks"="track_title", "artists"="artist_name",
                       "BPM"="bpm", "release years"="release_year"),
                     selected = "bpm"),
-        
+
         # stage of set slider
         sliderInput(inputId = "set_stage", label = "set stage (quarter)",
                     min = 1, max = 4, value = c(1, 4), step = 1,
                     pre="Q"),
-    
+
       # plot colour
       colourInput(inputId = "plot_col",
                   label = "plot colour",
                   value = "#7F00FF", showColour = "background")
       ),
-    
+
     HTML(paste("<p>Made by <a href='https://twitter.com/ewen_'>@ewen_</a>.",
                "Peep the <a href='https://github.com/ewenme/deejae'>code</a>.</p>"))
     ),
-    
+
     column(
-      9, 
-      
+      9,
+
       # set plot
       withSpinner(
         plotOutput(outputId = "set_plot"),
@@ -127,34 +127,34 @@ ui <- fluidPage(
   )
 
 server <- function(input, output, session) {
-  
+
   observe_helpers()
-  
+
   # data objects ----------------------------
-  
+
   # uploaded history data
   selection_data <- reactive({
-    
+
     # check for history upload
     upload <- input$history_upload
     if (is.null(upload)) return(NULL)
-    
+
     # filenames object
     filenames <- input$history_upload$name
-    
+
     # read history data files
     df <- map(input$history_upload$datapath, read_traktor_history)
-    
+
     # set names of data files to filenames
     names(df) <- filenames
-    
+
     # bind rows of history data files, id col as filename
     df <- bind_rows(df, .id="import_file")
-    
+
     df <- df %>%
       # reduce import file name field
       mutate(import_file = str_extract(import_file, "history.*"))
-    
+
     # create formatted set date
     df$set_date <- str_remove_all(str_extract(df$import_file, "_(.*?)_"), "_")
     df$set_date <- ymd(df$set_date)
@@ -183,7 +183,7 @@ server <- function(input, output, session) {
         new_set = cumsum(set_break)) %>%
         # remove sets smaller than five tracks
       group_by(set_date, new_set) %>%
-      filter(n() >= 5) %>% 
+      filter(n() >= 5) %>%
       group_by(set_date) %>%
       mutate(
         new_set = cumsum(set_break),
@@ -191,11 +191,11 @@ server <- function(input, output, session) {
           new_set == 0, paste(set_date_formatted),
           paste0(set_date_formatted, " (", new_set, ")")
           )
-        ) %>% 
+        ) %>%
       ungroup() %>%
       # remove intermediary fields
       select(-new_set, -set_break, -gap)
-    
+
     df <- df %>%
       # reset set time fields (now new sets defined)
       group_by(set_date_formatted) %>%
@@ -216,89 +216,89 @@ server <- function(input, output, session) {
         ) %>%
       # separate sets if >= 5 mins silence
       ungroup()
-  
+
     return(df)
-    
+
   })
-  
+
   # selection data filtered by app inputs
   selection_data_filtered <- reactive({
-    
+
     req(input$history_upload)
 
     df <- selection_data()
-    
+
     # filter for current set choice
     df <- dplyr::filter(df, set_stage >= input$set_stage[1],
                         set_stage <= input$set_stage[2])
-    
+
     return(df)
-    
+
   })
-  
+
   # set data filtered by app inputs
   set_data <- reactive({
-    
+
     req(input$history_upload)
     req(input$set_select)
-    
+
     df <- selection_data()
-    
+
     # filter for current set choice
     df <- dplyr::filter(df, set_date_formatted %in% input$set_select)
-    
+
     return(df)
-    
+
   })
-  
+
   # app server ------------------------------------------------------
-  
-  # sets upload success pop-up 
+
+  # sets upload success pop-up
   observeEvent(input$history_upload, {
     # Show a modal when the button is pressed
     shinyalert(title = "history file(s) uploaded.", type = "success",
                closeOnClickOutside = TRUE)
   })
-  
+
   # update set select input based on user collection
   observe({
-    
+
     req(input$history_upload)
 
-    updateSelectInput(session, "set_select", 
+    updateSelectInput(session, "set_select",
                       choices = unique(selection_data()$set_date_formatted)
                       )
   })
-  
+
   # condition to use in the set selection conditional UI
   output$set_cond <- reactive({
     is.null(input$history_upload)
   })
   outputOptions(output, "set_cond", suspendWhenHidden = FALSE)
-  
+
   # sets plot
   output$set_plot <- renderPlot({
-    
+
     # get user inputs
     req(input$history_upload)
-    
+
     if (input$set_view == 2) {
-      
+
       # get all selections data
-      df <- selection_data_filtered() 
-      
+      df <- selection_data_filtered()
+
       req(input$set_xvar)
-      
+
       if (input$set_xvar %in% c("bpm", "release_year")) {
-        
+
         p <- ggplot(data = df, aes_string(x=input$set_xvar)) +
           geom_density(colour=input$plot_col) +
           ylab("% of selections") +
           scale_y_percent() +
           theme_ipsum_ps(grid = "Y", base_size = 16)
-        
+
       } else if (input$set_xvar %in% c("artist_name")) {
-        
+
         p <- df %>%
           count(.dots=input$set_xvar) %>%
           top_n(10, wt=n) %>%
@@ -308,9 +308,9 @@ server <- function(input, output, session) {
           ylab("# of selections") +
           coord_flip() +
           theme_ipsum_ps(grid = "X", base_size = 16)
-      
+
       } else if (input$set_xvar %in% c("track_title")) {
-          
+
         p <- df %>%
           group_by(track_title, artist_name) %>%
           summarise(n=n()) %>% ungroup() %>%
@@ -322,9 +322,9 @@ server <- function(input, output, session) {
           ylab("# of selections") +
           coord_flip() +
           theme_ipsum_ps(grid = "X", base_size = 16)
-        
+
         }
-      
+
       # set common plot elements
       p +
         labs(title = str_to_lower(paste0(str_replace_all(input$set_xvar, "_", " "), ", ",
@@ -336,12 +336,12 @@ server <- function(input, output, session) {
               axis.title.y = element_text(size = 16),
               axis.text.x = element_text(size = 14),
               axis.text.y = element_text(size = 14))
-        
+
     } else if (input$set_view == 1) {
-    
+
       # get set data
       df <- set_data()
-    
+
       # text size
       obj_size <- case_when(
         nrow(df) <= 10 ~ 6,
@@ -350,12 +350,12 @@ server <- function(input, output, session) {
         nrow(df) <= 40 ~ 3,
         nrow(df) > 40 ~ 2
         )
-    
+
       # plot set progress
       ggplot(data = df, aes(y=track_no, x=set_time, xend=end_time,
                           label=paste3(artist_name, track_title))) +
       geom_dumbbell(size=obj_size, size_x = obj_size, size_xend = obj_size,
-                    color="#e3e2e1", colour_x = input$track_start_col, 
+                    color="#e3e2e1", colour_x = input$track_start_col,
                     colour_xend = input$track_end_col,
                     dot_guide=TRUE, dot_guide_size=0.25) +
       geom_text(aes(x = end_time),
@@ -373,32 +373,32 @@ server <- function(input, output, session) {
             plot.margin = margin(6, 300, 6, 6))
     }
   })
-  
+
   # # sets table view
   # output$set_table <- DT::renderDataTable({
-  #   
+  #
   #   # input$collection_upload will be NULL initially. After the user selects
   #   # and uploads a file, head of that data file will be shown.
-  #   
+  #
   #   req(input$history_upload)
-  #   
+  #
   #   if (input$set_view == 1) {
-  #     
+  #
   #     df <- set_data()
-  #     
+  #
   #     } else if (input$set_view == 2) {
-  #     
-  #       df <- selection_data_filtered() 
-  #     
+  #
+  #       df <- selection_data_filtered()
+  #
   #   }
-  #   
+  #
   #   # create datatable
   #   df <- subset(df, select = c(track_no, track_title, artist_name, album_title,
   #                               bpm, release_year, import_date, last_played,
   #                               play_count, track_length_formatted))
-  #   
+  #
   #   DT::datatable(df, rownames = FALSE,
-  #                 colnames = c("#", "track", "artist", "album", "bpm", 
+  #                 colnames = c("#", "track", "artist", "album", "bpm",
   #                              "release year","date added", "last played", "play count",
   #                              "track length"),
   #                 options = list(
@@ -409,6 +409,6 @@ server <- function(input, output, session) {
   # })
 }
 
-# Run the application 
+# Run the application
 shinyApp(ui = ui, server = server)
 

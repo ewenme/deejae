@@ -1,0 +1,38 @@
+Package: deejae
+Title: Explore and Visualise DJ Sets
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Ewen",
+           family = "Henderson",
+           role = c("aut", "cre"),
+           email = "ewen.henderson@gmail.com",
+           comment = c(ORCID = "0000-0002-4748-4693"))
+Description: deejae is a an ongoing open-source effort 
+    to help DJs explore and visualise their selections, 
+    built using Shiny.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
+Depends:
+    R (>= 3.3.0)
+Imports: 
+    shiny,
+    shinyalert,
+    shinycssloaders,
+    shinyhelper,
+    shinyjs,
+    shinythemes,
+    shinyWidgets,
+    dplyr,
+    purrr,
+    lubridate,
+    stringr,
+    xml2,
+    ggplot2,
+    ggalt,
+    ggrepel,
+    hrbrthemes,
+    colourpicker,
+    hms,
+    extrafont
