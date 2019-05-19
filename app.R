@@ -1,10 +1,10 @@
 # package load
-library(devtools)
 library(shiny)
 library(shinyalert)
-library(shinythemes)
 library(shinycssloaders)
+library(shinyhelper)
 library(shinyjs)
+library(shinythemes)
 library(shinyWidgets)
 library(xml2)
 library(lubridate)
@@ -27,123 +27,108 @@ update_geom_font_defaults(family = "IBMPlexSans-Light")
 
 # Define UI for application ------------------------------------------------
 
-ui <- navbarPage(
+ui <- fluidPage(
   
-  # overall layout/styles ---------------
   title = "deejae", theme = shinytheme("paper"),
-  selected = "start", collapsible = TRUE,
-  useShinyalert(),  # Set up shinyalert
-  shinyjs::useShinyjs(), # set up shinyjs
+
+  useShinyalert(),
+  useShinyjs(),
+  
   tags$head(
-    # Include custom CSS
     includeCSS("styles.css"),
-    # resize plot
     tags$style("#set_plot{height: calc(100vh - 200px) !important;}")
     ),
   
-  # start page -------------------
-  tabPanel(title="start", 
-           fluidRow(column(12, includeMarkdown("start.Rmd")
-                           )
-                    )
-           ),
-  
-  # app UI -----------------
-  
-    # set app page
-    tabPanel(title="app", fluidRow(column(3, wellPanel(
-    
-    # input: history files upload
-    conditionalPanel(
-      condition = "output.set_cond == true",
-      fileInput(
-        inputId = "history_upload", 
-        label = "   upload traktor history",
-        accept = c(".nml"), buttonLabel = "browse",
-        placeholder = "no file selected", multiple = TRUE
-        )
+  fluidRow(
+    column(
+      3,
+      
+      h2("deejae"),
+      
+      # history files upload
+      conditionalPanel(
+        condition = "output.set_cond == true",
+        helper(
+          fileInput(
+            inputId = "history_upload", 
+            label = "   upload traktor history",
+            accept = c(".nml"), buttonLabel = "browse",
+            placeholder = "no file selected", multiple = TRUE
+          ), 
+          content = "help_upload")
       ),
+      
+      # choose set-by-set or summary view
+      conditionalPanel(
+        condition = "output.set_cond == false",
+        radioButtons(
+          inputId = "set_view", label = "set view",
+          choices = list("set-by-set" = 1, "all sets" = 2),
+          selected = 1)
+      ),
+      
+      # set view
+      conditionalPanel(
+        condition = "output.set_cond == false && input.set_view == 1",
+        
+        # select set
+        selectInput(
+          inputId = "set_select", label = "choose a set",
+          choices = ""),
+        
+        splitLayout(
+          # track start plot colour
+          colourInput(inputId = "track_start_col",
+                      label = "track start",
+                      value = "#7F00FF", showColour = "background",
+                      allowTransparent = TRUE),
+          
+          # track end plot colour
+          colourInput(inputId = "track_end_col",
+                      label = "track end",
+                      value = "#E100FF", showColour = "background",
+                      allowTransparent = TRUE),
+          cellArgs = list (style = "overflow:visible")
+          )),
+      
+      conditionalPanel(
+        condition = "output.set_cond == false && input.set_view == 2",
+        
+        # plot x-variable
+        selectInput(inputId = "set_xvar", label = "wot 2 plot",
+                    c("tracks"="track_title", "artists"="artist_name", 
+                      "BPM"="bpm", "release years"="release_year"),
+                    selected = "bpm"),
+        
+        # stage of set slider
+        sliderInput(inputId = "set_stage", label = "set stage (quarter)",
+                    min = 1, max = 4, value = c(1, 4), step = 1,
+                    pre="Q"),
     
-    # input: set-by-set or summary view
-    conditionalPanel(
-      condition = "output.set_cond == false",
-      radioButtons(
-        inputId = "set_view", label = "set view",
-        choices = list("set-by-set" = 1, "all sets" = 2),
-        selected = 1)
-    ),
-    
-    tags$hr(),
-    
-    # set view
-    conditionalPanel(
-      condition = "output.set_cond == false && input.set_view == 1",
-      
-      # input: select set
-      selectInput(
-        inputId = "set_select", label = "choose a set",
-        choices = ""),
-      
-      splitLayout(
-      # input: track start plot colour
-      colourInput(inputId = "track_start_col",
-                  label = "track start",
-                  value = "#7F00FF", showColour = "background",
-                  allowTransparent = TRUE),
-      
-      # input: track end plot colour
-      colourInput(inputId = "track_end_col",
-                  label = "track end",
-                  value = "#E100FF", showColour = "background",
-                  allowTransparent = TRUE),
-      cellArgs = list (style = "overflow:visible")
-      )),
-    
-    # all selections view
-    
-    conditionalPanel(
-      condition = "output.set_cond == false && input.set_view == 2",
-      
-      # input: plot x-variable
-      selectInput(inputId = "set_xvar", label = "wot 2 plot",
-                  c("tracks"="track_title", "artists"="artist_name", 
-                    "BPM"="bpm", "release years"="release_year"),
-                  selected = "bpm"),
-      
-      # input: stage of set slider
-      sliderInput(inputId = "set_stage", label = "set stage (quarter)",
-                  min = 1, max = 4, value = c(1, 4), step = 1,
-                  pre="Q"),
-      
-      # input: plot colour
+      # plot colour
       colourInput(inputId = "plot_col",
                   label = "plot colour",
                   value = "#7F00FF", showColour = "background")
-      )
-    )),
+      ),
     
-    column(9, 
-           # tabsetPanel(
+    HTML(paste("<p>Made by <a href='https://twitter.com/ewen_'>@ewen_</a>.",
+               "Peep the <a href='https://github.com/ewenme/deejae'>code</a>.</p>"))
+    ),
+    
+    column(
+      9, 
       
-      # tabPanel("visualise",
-      
-      # output: set plot
-      tags$br(),
-      withSpinner(plotOutput(outputId = "set_plot"),
-                           type = 8)
-               )
-    # ,
-      # # output: set table view
-      # tabPanel("table view",
-      #          withSpinner(DT::dataTableOutput(outputId = "set_table"),
-      #                      type = 8)
-      #          )
-    ))
+      # set plot
+      withSpinner(
+        plotOutput(outputId = "set_plot"),
+        type = 8)
+      )
+    )
   )
 
-
-# Define server logic ------------------------------------------------
 server <- function(input, output, session) {
+  
+  observe_helpers()
   
   # data objects ----------------------------
   

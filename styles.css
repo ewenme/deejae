@@ -1,17 +1,9 @@
-@import url('https://fonts.googleapis.com/css?family=Work+Sans');
-
-@font-face {
-    font-family: Work Sans, sans-serif;
-}
+@import url('https://fonts.googleapis.com/css?family=Work+Sans:400,700');
 
 div {
     font-family: Work Sans, sans-serif;
 }
 
-/* Customize fonts */
-body, label, input, button, select { 
-  font-family: 'Work Sans';
-  font-size: 16px;
-  color: black;
+h2 {
+  font-weight: 700;
 }
-
