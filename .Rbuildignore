@@ -3,3 +3,4 @@
 ^README\.Rmd$
 ^.*\.gif$
 ^.*\.png$
+^.*\.nml$

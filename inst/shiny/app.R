@@ -1,4 +1,3 @@
-# package load
 library(shiny)
 library(shinyalert)
 library(shinycssloaders)
@@ -25,8 +24,6 @@ source("extract_funcs.R")
 # get font
 update_geom_font_defaults(family = "IBMPlexSans-Light")
 
-# Define UI for application ------------------------------------------------
-
 ui <- fluidPage(
 
   title = "deejae", theme = shinytheme("paper"),
@@ -36,7 +33,7 @@ ui <- fluidPage(
 
   tags$head(
     includeCSS("www/styles.css"),
-    tags$style("#set_plot{height: calc(100vh - 200px) !important;}")
+    tags$style("#set_plot{height:100vh !important;}")
     ),
 
   fluidRow(

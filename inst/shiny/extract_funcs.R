@@ -1,113 +1,83 @@
 # function to read traktor (.nml) collection
 read_traktor_collection <- function(x) {
-  
+
   # read collection file
-  collection <- read_xml(x = x)
-  
-  # extract collection entries
-  collection_entries <- xml_child(collection, search = 3) %>%
+  collection <- read_xml(x = x) %>%
+    xml_child(search = "COLLECTION") %>%
     xml_find_all(xpath = ".//ENTRY")
-  
-  # extract parent attrs
-  parents <- tibble(
-    audio_id = xml_attr(collection_entries, "AUDIO_ID"),
-    track_title = xml_attr(collection_entries, "TITLE"),
-    artist_name = xml_attr(collection_entries, "ARTIST")
+
+  # extract various attrs
+  location <- xml_find_first(collection, xpath = ".//LOCATION")
+  album <- xml_find_first(collection, xpath = ".//ALBUM")
+  tempo <- xml_find_first(collection, xpath = ".//TEMPO")
+  info <- xml_find_first(collection, xpath = ".//INFO")
+
+  # merge attrs into a data frame
+  df <- tibble(
+    track_title = xml_attr(collection, "TITLE"),
+    artist_name = xml_attr(collection, "ARTIST"),
+    album_title = xml_attr(album, "TITLE"),
+    uid = paste0(xml_attr(location, "VOLUME"), xml_attr(location, "DIR"),
+                 xml_attr(location, "FILE")),
+    bpm = xml_attr(tempo, "BPM"),
+    genre = xml_attr(info, "GENRE"),
+    release_year = xml_attr(info, "RELEASE_DATE"),
+    track_length = xml_attr(info, "PLAYTIME"),
+    play_count = xml_attr(info, "PLAYCOUNT"),
+    import_date = xml_attr(info, "IMPORT_DATE"),
+    last_played = xml_attr(info, "LAST_PLAYED"),
+    key = xml_attr(info, "KEY")
   )
-  
-  # extract loaction attrs
-  location_tree <- xml_find_first(collection_entries, xpath = ".//LOCATION")
-  location <- tibble(
-    volume = xml_attr(location_tree, "VOLUME"),
-    dir = xml_attr(location_tree, "DIR"),
-    file = xml_attr(location_tree, "FILE"),
-    uid = paste0(volume, dir, file)
-  )
-  
-  # extract album attrs
-  album_tree <- xml_find_first(collection_entries, xpath = ".//ALBUM")
-  album <- tibble(
-    album_title = xml_attr(album_tree, "TITLE")
-  )
-  
-  # extract tempo attrs
-  tempo_tree <- xml_find_first(collection_entries, xpath = ".//TEMPO")
-  tempo <- tibble(
-    bpm = xml_attr(tempo_tree, "BPM")
-  )
-  
-  # extract info attrs
-  info_tree <- xml_find_first(collection_entries, xpath = ".//INFO")
-  info <- tibble(
-    genre = xml_attr(info_tree, "GENRE"),
-    release_year = xml_attr(info_tree, "RELEASE_DATE"),
-    track_length = xml_attr(info_tree, "PLAYTIME"),
-    play_count = xml_attr(info_tree, "PLAYCOUNT"),
-    import_date = xml_attr(info_tree, "IMPORT_DATE"),
-    last_played = xml_attr(info_tree, "LAST_PLAYED"),
-    key = xml_attr(info_tree, "KEY")
-  )
-  
-  # bind extracted features
-  data <- dplyr::bind_cols(parents, location, album, tempo, info)
-  
+
   # fix col classes
-  data <- data %>%
+  df <- df %>%
     mutate_at(c("import_date", "last_played"), ymd) %>%
     mutate_at(c("bpm", "track_length", "play_count"), as.numeric) %>%
     mutate(release_year = year(ymd(release_year)),
            track_length_formatted = secondsToString(track_length))
-  
-  return(data)
-  
+
+  return(df)
+
 }
 
 # function to read traktor history (.nml) file
 read_traktor_history <- function(x) {
-  
-  # get track info ------------------------------------
-  
-  track_data <- read_traktor_collection(x)
-  
-  # get playlist info --------------------------------------
-  
-  playlist_data <- read_xml(x)
-  
-  playlist_entries <- xml_child(playlist_data, 5) %>%
+
+  # get track data
+  track_df <- read_traktor_collection(x)
+
+  # get playlist data
+  playlist_data <- read_xml(x) %>%
+    xml_child("PLAYLISTS") %>%
     xml_find_all(xpath = ".//ENTRY")
-  
+
   # extract key attrs
-  key_tree <- xml_find_first(playlist_entries, xpath = ".//PRIMARYKEY")
-  key <- tibble(
-    id_key = xml_attr(key_tree, "KEY"),
-    record_type = xml_attr(key_tree, "TYPE")
+  key <- xml_find_first(playlist_data, xpath = ".//PRIMARYKEY")
+  extended <- xml_find_first(playlist_data, xpath = ".//EXTENDEDDATA")
+
+  # create playlist data frame
+  playlist_df <- tibble(
+    uid = xml_attr(key, "KEY"),
+    record_type = xml_attr(key, "TYPE"),
+    deck = xml_attr(extended, "DECK"),
+    duration = xml_attr(extended, "DURATION"),
+    # extended_type = xml_attr(extended, "EXTENDEDTYPE"),
+    public = xml_attr(extended, "PLAYEDPUBLIC"),
+    start_date = xml_attr(extended, "STARTDATE"),
+    start_time = xml_attr(extended, "STARTTIME")
   )
-  
-  # extract extended attrs
-  extended_tree <- xml_find_first(playlist_entries, xpath = ".//EXTENDEDDATA")
-  extended <- tibble(
-    deck = xml_attr(extended_tree, "DECK"),
-    duration = xml_attr(extended_tree, "DURATION"),
-    extended_type = xml_attr(extended_tree, "EXTENDEDTYPE"),
-    public = xml_attr(extended_tree, "PLAYEDPUBLIC"),
-    start_date = xml_attr(extended_tree, "STARTDATE"),
-    start_time = xml_attr(extended_tree, "STARTTIME")
-  )
-  
-  # bind extracted features
-  playlist_data <- bind_cols(key, extended)
-  
+
   # join track/playlist info
-  data <- inner_join(track_data, playlist_data, by=c("uid"="id_key"))
-  
+  data <- inner_join(track_df, playlist_df, by = "uid")
+
   # fix col classes
   data <- data %>%
     mutate_at(c("duration", "deck", "public", "start_time", "start_date"), as.numeric) %>%
     # remove non-public plays
     filter(public == 1)
-  
+
   return(data)
-  
+
 }
 
 
@@ -125,7 +95,7 @@ secondsToString <- function(x, digits=2){
                fmt <- '%M:%S'
              else
                fmt <- '%OS'
-             
+
              i <- format(as.POSIXct(strptime("0:0:0","%H:%M:%S")) + i, format=fmt)
              if (fs > 0)
                sub('[0]+$','',paste(i,fs,sep='.'))
